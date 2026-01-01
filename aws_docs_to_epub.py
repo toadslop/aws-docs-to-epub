@@ -338,6 +338,21 @@ class AWSDocsToEpub:
         for elem in main_content.find_all('div', class_='prev-next'):
             elem.decompose()
 
+        # Remove AWS UI elements that cause HTML validation issues
+        for elem in main_content.find_all('div', class_='code-btn-container'):
+            elem.decompose()
+        
+        for elem in main_content.find_all('div', class_='btn-copy-code'):
+            elem.decompose()
+        
+        for elem in main_content.find_all('awsui-icon'):
+            elem.decompose()
+
+        # Remove all id attributes to avoid duplicate ID errors in EPUB validation
+        for elem in main_content.find_all(True):
+            if elem.has_attr('id'):
+                del elem['id']
+
         # Convert relative links to absolute
         for link in main_content.find_all('a', href=True):
             link['href'] = urljoin(url, link['href'])
