@@ -88,7 +88,8 @@ class AWSDocsToEpub:
         self.visited_urls = set()
         self.guide_title = None
         self.guide_metadata = {}
-        self.images = {}  # Cache for downloaded images: {url: (data, ext, media_type)}
+        # Cache for downloaded images: {url: (data, ext, media_type)}
+        self.images = {}
 
     def fetch_page(self, url):
         """Fetch a page with retry logic"""
@@ -135,7 +136,7 @@ class AWSDocsToEpub:
 
             response = self.session.get(img_url, timeout=30)
             response.raise_for_status()
-            
+
             result = (response.content, ext, media_type)
             self.images[img_url] = result
             return result
@@ -341,10 +342,10 @@ class AWSDocsToEpub:
         # Remove AWS UI elements that cause HTML validation issues
         for elem in main_content.find_all('div', class_='code-btn-container'):
             elem.decompose()
-        
+
         for elem in main_content.find_all('div', class_='btn-copy-code'):
             elem.decompose()
-        
+
         for elem in main_content.find_all('awsui-icon'):
             elem.decompose()
 
@@ -459,14 +460,10 @@ class AWSDocsToEpub:
         if self.cover_icon_url:
             cover_image_data, img_ext, img_media_type = self.fetch_cover_icon()
             if cover_image_data:
-                # Add the cover image to the book
-                cover_image = epub.EpubItem(
-                    uid="cover_icon",
-                    file_name=f"cover_icon.{img_ext}",
-                    media_type=img_media_type,
-                    content=cover_image_data
-                )
-                book.add_item(cover_image)
+                # Use set_cover to add the image with proper metadata
+                # This ensures e-readers recognize it for library display
+                book.set_cover(
+                    f"images/cover_icon.{img_ext}", cover_image_data)
 
                 # Create CSS for cover page
                 cover_css = epub.EpubItem(
@@ -508,33 +505,41 @@ class AWSDocsToEpub:
                 )
                 book.add_item(cover_css)
 
-                # Create cover page
+                # Create a custom styled cover page with image and title
+                # Use a different filename to avoid conflict with set_cover's auto-generated cover.xhtml
                 service_display_name = self.guide_title or f'AWS {self.service_name.upper()}'
-                cover_html = self.create_cover_page(service_display_name, f"cover_icon.{img_ext}")
+                cover_html = self.create_cover_page(
+                    service_display_name, f"images/cover_icon.{img_ext}")
+
+                # Create custom cover page
                 cover_page = epub.EpubHtml(
+                    uid='title-page',
                     title='Cover',
-                    file_name='cover.xhtml',
+                    file_name='title_page.xhtml',
                     lang='en'
                 )
                 cover_page.content = cover_html
                 cover_page.add_item(cover_css)
-                cover_page.add_item(cover_image)
+
+                # Set the is_linear property to ensure it appears first
+                cover_page.is_linear = True
                 book.add_item(cover_page)
 
         # Download and add all images to the book
         print("Downloading and embedding images...")
         image_mapping = {}  # Maps original URL to local filename
         image_counter = 0
-        
+
         for page in pages:
             for img_url in page.get('images', []):
                 if img_url not in image_mapping:
-                    img_data, img_ext, img_media_type = self.download_image(img_url)
+                    img_data, img_ext, img_media_type = self.download_image(
+                        img_url)
                     if img_data:
                         image_counter += 1
                         local_filename = f"images/img_{image_counter:04d}.{img_ext}"
                         image_mapping[img_url] = local_filename
-                        
+
                         # Add image to book
                         img_item = epub.EpubItem(
                             uid=f"image_{image_counter}",
@@ -543,7 +548,7 @@ class AWSDocsToEpub:
                             content=img_data
                         )
                         book.add_item(img_item)
-        
+
         print(f"Embedded {len(image_mapping)} images")
 
         # Create chapters with local image references
