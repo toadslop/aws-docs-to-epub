@@ -349,9 +349,15 @@ class AWSDocsToEpub:
             elem.decompose()
 
         # Remove all id attributes to avoid duplicate ID errors in EPUB validation
+        # Also remove custom AWS attributes that are not valid HTML5/EPUB
+        invalid_attrs = ['tab-id', 'data-target', 'data-toggle']
         for elem in main_content.find_all(True):
             if elem.has_attr('id'):
                 del elem['id']
+            # Remove invalid custom attributes
+            for attr in invalid_attrs:
+                if elem.has_attr(attr):
+                    del elem[attr]
 
         # Convert relative links to absolute
         for link in main_content.find_all('a', href=True):
