@@ -350,7 +350,7 @@ class AWSDocsToEpub:
 
         # Remove all id attributes to avoid duplicate ID errors in EPUB validation
         # Also remove custom AWS attributes that are not valid HTML5/EPUB
-        invalid_attrs = ['tab-id', 'data-target', 'data-toggle']
+        invalid_attrs = ['tab-id', 'data-target', 'data-toggle', 'copy']
         for elem in main_content.find_all(True):
             if elem.has_attr('id'):
                 del elem['id']
