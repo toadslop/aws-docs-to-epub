@@ -1,15 +1,26 @@
 """EPUB book creation and management."""
 
-from ebooklib import epub
-from bs4 import BeautifulSoup
-from image_utils import render_cover_image
+import os
 import re
+import traceback
+from typing import Union, List, Optional
+
+from ebooklib import epub  # type: ignore
+from bs4 import BeautifulSoup
+import requests
+
+from .image_utils import fetch_image_from_url, fetch_local_image, render_cover_image
 
 
 class EPUBBuilder:
     """Handles EPUB book creation and content management."""
 
-    def __init__(self, title, author='AWS Documentation', language='en', identifier=None):
+    def __init__(
+            self,
+            title: str,
+            author: str = 'AWS Documentation',
+            language: str = 'en',
+            identifier: Optional[str] = None):
         self.book = epub.EpubBook()
         self.title = title
         self.author = author
@@ -22,15 +33,12 @@ class EPUBBuilder:
         if identifier:
             self.book.set_identifier(identifier)
 
-        self.chapters = []
-        self.toc_items = []
-        self.spine = ['nav']
+        self.chapters: List[epub.EpubHtml] = []
+        self.toc_items: List[epub.EpubHtml] = []
+        self.spine: List[Union[str, epub.EpubHtml]] = ['nav']
 
     def add_cover(self, cover_icon_url):
         """Generate and add cover image to the book."""
-        import os
-        import requests
-        from image_utils import fetch_image_from_url, fetch_local_image, render_cover_image
 
         try:
             # Fetch the icon
@@ -58,9 +66,9 @@ class EPUBBuilder:
                 print("Cover image added successfully")
             else:
                 print("Failed to render cover image")
-        except Exception as e:
+        except (requests.RequestException, OSError, ValueError) as e:
             print(f"Error adding cover: {e}")
-            import traceback
+
             traceback.print_exc()
 
     def add_css(self):
@@ -134,7 +142,7 @@ a {
         filename = re.sub(r'[-\s]+', '_', filename)
         return filename[:50].lower()
 
-    def add_chapter(self, title, content, page_url):
+    def add_chapter(self, title, content):
         """Add a chapter to the book."""
         filename = self.sanitize_filename(title)
 
@@ -170,10 +178,11 @@ a {
         # Fix image paths
         for img in soup.find_all('img'):
             src = img.get('src', '')
-            if src.startswith('//'):
-                img['src'] = 'https:' + src
-            elif src.startswith('/'):
-                img['src'] = 'https://docs.aws.amazon.com' + src
+            if src and isinstance(src, str):
+                if src.startswith('//'):
+                    img['src'] = 'https:' + src
+                elif src.startswith('/'):
+                    img['src'] = 'https://docs.aws.amazon.com' + src
 
         # Wrap in div if no body tag
         if not soup.find('body'):

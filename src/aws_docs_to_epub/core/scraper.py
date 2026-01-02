@@ -38,7 +38,7 @@ class AWSScraper:
                 response.raise_for_status()
                 response.encoding = 'utf-8'
                 return response.text
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError) as e:
                 print(f"Attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
@@ -52,38 +52,68 @@ class AWSScraper:
         """Extract the main content from a page."""
         soup = BeautifulSoup(html_content, 'lxml')
 
-        # Find the main content area
-        main_content = soup.find('main') or soup.find('div', id='main-content') or \
-            soup.find('div', class_='documentation-content')
-
-        if not main_content:
-            main_content = soup.find('body')
-
+        main_content = self._find_main_content(soup)
         if not main_content:
             return None
 
-        # Extract title
-        title_elem = soup.find('h1') or soup.find('title')
-        title = title_elem.get_text(strip=True) if title_elem else 'Untitled'
+        title = self._extract_title(soup)
+        self._clean_content(main_content)
+        self._fix_links_and_images(main_content, url)
 
-        # Clean up the content - remove navigation, scripts, etc.
-        for elem in main_content.find_all(['script', 'style', 'nav', 'footer', 'header', 'noscript']):
+        images_in_page = [urljoin(url, str(img['src']))
+                          for img in main_content.find_all('img', src=True)]
+
+        return {
+            'title': title,
+            'content': str(main_content),
+            'url': url,
+            'images': images_in_page
+        }
+
+    def _find_main_content(self, soup):
+        """Find the main content area of the page."""
+        main_content = soup.find('main') or soup.find('div', id='main-content') or \
+            soup.find('div', class_='documentation-content')
+        return main_content or soup.find('body')
+
+    def _extract_title(self, soup):
+        """Extract the page title."""
+        title_elem = soup.find('h1') or soup.find('title')
+        return title_elem.get_text(strip=True) if title_elem else 'Untitled'
+
+    def _clean_content(self, main_content):
+        """Remove unwanted elements from the content."""
+        # Remove navigation, scripts, etc.
+        for elem in main_content.find_all(
+            ['script', 'style', 'nav', 'footer', 'header', 'noscript']
+        ):
             elem.decompose()
 
         # Remove specific AWS documentation elements
-        for elem in main_content.find_all('div', id=['js_error_message', 'doc-conventions', 'main-col-footer']):
+        for elem in main_content.find_all(
+            'div', id=['js_error_message', 'doc-conventions', 'main-col-footer']
+        ):
             elem.decompose()
 
-        for elem in main_content.find_all(['awsdocs-page-utilities', 'awsdocs-copyright', 'awsdocs-thumb-feedback']):
+        for elem in main_content.find_all(
+                ['awsdocs-page-utilities', 'awsdocs-copyright',
+                    'awsdocs-thumb-feedback']
+        ):
             elem.decompose()
 
-        for elem in main_content.find_all('div', class_=['prev-next', 'code-btn-container', 'btn-copy-code']):
+        for elem in main_content.find_all(
+            'div', class_=['prev-next', 'code-btn-container', 'btn-copy-code']
+        ):
             elem.decompose()
 
         for elem in main_content.find_all('awsui-icon'):
             elem.decompose()
 
-        # Remove id attributes and invalid custom attributes
+        # Remove invalid attributes
+        self._remove_invalid_attributes(main_content)
+
+    def _remove_invalid_attributes(self, main_content):
+        """Remove id and other invalid attributes from elements."""
         invalid_attrs = ['tab-id', 'data-target', 'data-toggle', 'copy']
         for elem in main_content.find_all(True):
             if elem.has_attr('id'):
@@ -92,23 +122,13 @@ class AWSScraper:
                 if elem.has_attr(attr):
                     del elem[attr]
 
-        # Convert relative links to absolute
+    def _fix_links_and_images(self, main_content, url):
+        """Convert relative URLs to absolute URLs."""
         for link in main_content.find_all('a', href=True):
             link['href'] = urljoin(url, link['href'])
 
-        # Track images
-        images_in_page = []
         for img in main_content.find_all('img', src=True):
-            img_url = urljoin(url, img['src'])
-            img['src'] = img_url
-            images_in_page.append(img_url)
-
-        return {
-            'title': title,
-            'content': str(main_content),
-            'url': url,
-            'images': images_in_page
-        }
+            img['src'] = urljoin(url, img['src'])
 
     def scrape_pages(self, page_links, max_pages=None):
         """Scrape content from a list of page links."""

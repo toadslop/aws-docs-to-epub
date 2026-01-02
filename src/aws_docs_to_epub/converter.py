@@ -2,10 +2,38 @@
 
 from urllib.parse import urlsplit
 import re
+from dataclasses import dataclass
+from typing import Optional
 
-from scraper import AWSScraper
-from toc_parser import TOCParser
-from epub_builder import EPUBBuilder
+from ebooklib import epub  # type: ignore[import-untyped]
+from bs4 import BeautifulSoup
+
+from .core.scraper import AWSScraper
+from .core.toc_parser import TOCParser
+from .core.epub_builder import EPUBBuilder
+from .core.image_utils import fetch_image_from_url
+
+
+@dataclass
+class GuideConfig:
+    """Configuration extracted from AWS documentation URL."""
+    service_name: str
+    version: str
+    guide_type: str
+    guide_path: str
+    start_url: str
+    base_url: str = 'https://docs.aws.amazon.com'
+
+
+@dataclass
+class GuideMetadata:
+    """Metadata about the documentation guide."""
+    title: Optional[str] = None
+    metadata: Optional[dict] = None
+
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
 
 
 class AWSDocsToEpub:
@@ -39,8 +67,6 @@ class AWSDocsToEpub:
     """
 
     def __init__(self, start_url, cover_icon_url=None):
-        self.start_url = start_url
-        self.base_url = 'https://docs.aws.amazon.com'
         self.cover_icon_url = cover_icon_url
 
         # Parse the URL to extract guide information
@@ -50,10 +76,18 @@ class AWSDocsToEpub:
         # Extract service and guide type from URL
         # Typical format: /service/version/guide-type/page.html
         if len(path_parts) >= 3:
-            self.service_name = path_parts[0]
-            self.version = path_parts[1]
-            self.guide_type = path_parts[2]
-            self.guide_path = f"/{self.service_name}/{self.version}/{self.guide_type}/"
+            service_name = path_parts[0]
+            version = path_parts[1]
+            guide_type = path_parts[2]
+            guide_path = f"/{service_name}/{version}/{guide_type}/"
+
+            self.config = GuideConfig(
+                service_name=service_name,
+                version=version,
+                guide_type=guide_type,
+                guide_path=guide_path,
+                start_url=start_url
+            )
         else:
             raise ValueError(
                 f"Unable to parse AWS documentation URL: {start_url}")
@@ -61,10 +95,9 @@ class AWSDocsToEpub:
         # Initialize components
         self.scraper = AWSScraper()
         self.toc_parser = TOCParser(
-            self.scraper.session, self.base_url, self.guide_path)
+            self.scraper.session, self.config.base_url, self.config.guide_path)
 
-        self.guide_title = None
-        self.guide_metadata = {}
+        self.metadata = GuideMetadata()
 
     def scrape_all_pages(self, json_file=None, max_pages=None):
         """
@@ -94,12 +127,12 @@ class AWSDocsToEpub:
             print(f"Limited to {max_pages} pages for testing")
 
 # Extract guide title from first page before scraping
-        if pages_info and not self.guide_title:
+        if pages_info and not self.metadata.title:
             first_page_html = self.scraper.fetch_page(pages_info[0]['url'])
             if first_page_html:
-                self.guide_title = self.scraper.extract_guide_title(
+                self.metadata.title = self.scraper.extract_guide_title(
                     first_page_html)
-                print(f"Guide title: {self.guide_title}")
+                print(f"Guide title: {self.metadata.title}")
 
         # Scrape pages
         pages = self.scraper.scrape_pages(pages_info)
@@ -125,12 +158,15 @@ class AWSDocsToEpub:
         # Generate filename from service name if not provided
         if not output_filename:
             safe_name = re.sub(
-                r'[^\w\s-]', '', self.service_name).strip().replace(' ', '_')
-            output_filename = f'{safe_name}_{self.guide_type}.epub'
+                r'[^\w\s-]', '', self.config.service_name).strip().replace(' ', '_')
+            output_filename = f'{safe_name}_{self.config.guide_type}.epub'
 
         # Create EPUB book
-        book_title = self.guide_title or f'AWS {self.service_name.upper()} {self.guide_type.title()}'
-        identifier = f'aws-{self.service_name}-{self.guide_type}'
+        book_title = (
+            self.metadata.title
+            or f'AWS {self.config.service_name.upper()} {self.config.guide_type.title()}'
+        )
+        identifier = f'aws-{self.config.service_name}-{self.config.guide_type}'
 
         builder = EPUBBuilder(
             title=book_title,
@@ -168,8 +204,6 @@ class AWSDocsToEpub:
 
     def _download_images(self, pages, builder):
         """Download all images referenced in pages and add to EPUB."""
-        from image_utils import fetch_image_from_url
-        from ebooklib import epub
 
         image_mapping = {}
         image_counter = 0
@@ -177,12 +211,24 @@ class AWSDocsToEpub:
         for page in pages:
             for img_url in page.get('images', []):
                 if img_url not in image_mapping:
-                    img_data, img_ext, img_media_type = fetch_image_from_url(
-                        img_url)
+                    img_data, img_ext = fetch_image_from_url(
+                        img_url, self.scraper.session)
                     if img_data:
                         image_counter += 1
                         local_filename = f"images/img_{image_counter:04d}.{img_ext}"
                         image_mapping[img_url] = local_filename
+
+                        # Determine media type from extension
+                        media_types = {
+                            'jpg': 'image/jpeg',
+                            'jpeg': 'image/jpeg',
+                            'png': 'image/png',
+                            'gif': 'image/gif',
+                            'svg': 'image/svg+xml',
+                            'webp': 'image/webp'
+                        }
+                        img_media_type = media_types.get(
+                            img_ext.lower(), 'image/jpeg')
 
                         # Add image to book
                         img_item = epub.EpubItem(
@@ -197,7 +243,6 @@ class AWSDocsToEpub:
 
     def _add_chapter_with_images(self, builder, page, image_mapping):
         """Add a chapter to the book with local image references."""
-        from bs4 import BeautifulSoup
 
         content = page['content']
         soup = BeautifulSoup(content, 'html.parser')
@@ -217,4 +262,4 @@ class AWSDocsToEpub:
         else:
             final_content = f'<h1>{page["title"]}</h1>' + str(soup)
 
-        builder.add_chapter(page['title'], final_content, page['url'])
+        builder.add_chapter(page['title'], final_content)

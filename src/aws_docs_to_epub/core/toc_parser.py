@@ -3,6 +3,7 @@
 from urllib.parse import urljoin
 import json
 import os
+import requests
 
 
 class TOCParser:
@@ -22,7 +23,7 @@ class TOCParser:
             response = self.session.get(toc_url, timeout=30)
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             print(f"Error fetching TOC JSON: {e}")
             return None
 
@@ -68,6 +69,6 @@ class TOCParser:
             pages = self.parse_toc_json(toc_data)
             print(f"Loaded {len(pages)} pages from TOC")
             return pages
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Error loading TOC: {e}")
             return []

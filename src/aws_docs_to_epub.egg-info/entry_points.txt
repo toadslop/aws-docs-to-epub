@@ -1,0 +1,2 @@
+[console_scripts]
+aws-docs-to-epub = aws_docs_to_epub.cli:main
