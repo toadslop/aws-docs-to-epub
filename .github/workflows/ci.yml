@@ -1,62 +1,59 @@
 name: CI
 
 on:
-    push:
-        branches: [main, develop]
-    pull_request:
-        branches: [main]
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
-        steps:
-            - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v4
-              with:
-                  python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-            - name: Install system dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libcairo2-dev
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev default-jre
 
-            - name: Install dependencies
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install -e ".[dev]"
+      - name: Install epubcheck
+        run: |
+          wget https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+          unzip epubcheck-5.1.0.zip
+          sudo mv epubcheck-5.1.0 /opt/epubcheck
+          echo '#!/bin/bash' | sudo tee /usr/local/bin/epubcheck
+          echo 'java -jar /opt/epubcheck/epubcheck.jar "$@"' | sudo tee -a /usr/local/bin/epubcheck
+          sudo chmod +x /usr/local/bin/epubcheck
 
-            - name: Lint with pylint
-              run: |
-                  pylint src/aws_docs_to_epub --disable=all --enable=E,F
-              continue-on-error: true
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
-            - name: Format check with black
-              run: |
-                  black --check src tests
-              continue-on-error: true
+      - name: Lint with pylint
+        run: |
+          pylint src/aws_docs_to_epub --fail-under=9.5
 
-            - name: Import sort check
-              run: |
-                  isort --check-only src tests
-              continue-on-error: true
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ -v --cov=aws_docs_to_epub --cov-report=xml --cov-report=term-missing
 
-            - name: Type check with mypy
-              run: |
-                  mypy src
-              continue-on-error: true
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v -m integration
 
-            - name: Test with pytest
-              run: |
-                  pytest --cov=aws_docs_to_epub --cov-report=xml
-
-            - name: Upload coverage
-              uses: codecov/codecov-action@v3
-              with:
-                  file: ./coverage.xml
-                  fail_ci_if_error: false
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
