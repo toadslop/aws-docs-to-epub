@@ -36,6 +36,7 @@ class EPUBBuilder:
         self.chapters: List[epub.EpubHtml] = []
         self.toc_items: List[epub.EpubHtml] = []
         self.spine: List[Union[str, epub.EpubHtml]] = ['nav']
+        self.css: Optional[epub.EpubItem] = None
 
     def add_cover(self, cover_icon_url: str) -> None:
         """Generate and add cover image to the book."""
@@ -128,12 +129,13 @@ a {
 }
 '''
         nav_css = epub.EpubItem(
-            uid="style_nav",
-            file_name="style/nav.css",
+            uid="style_main",
+            file_name="style/styles.css",
             media_type="text/css",
             content=css_content
         )
         self.book.add_item(nav_css)
+        self.css = nav_css
         return nav_css
 
     def sanitize_filename(self, title: str) -> str:
@@ -155,6 +157,10 @@ a {
 
         # Clean and set content
         chapter.content = self._clean_content(content)
+
+        # Link CSS stylesheet if available
+        if self.css:
+            chapter.add_item(self.css)
 
         # Add to book
         self.book.add_item(chapter)
@@ -226,7 +232,8 @@ a {
         # Add table of contents
         if toc_structure and chapter_map:
             # Build nested TOC structure
-            self.book.toc = self._build_nested_toc(toc_structure, chapter_map)
+            self.book.toc = list(self._build_nested_toc(
+                toc_structure, chapter_map))
         else:
             # Fallback to flat TOC
             self.book.toc = self.toc_items
