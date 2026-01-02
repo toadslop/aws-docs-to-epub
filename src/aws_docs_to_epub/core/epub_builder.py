@@ -5,7 +5,7 @@ import re
 import traceback
 from typing import Union, List, Optional
 
-from ebooklib import epub  # type: ignore
+from ebooklib import epub
 from bs4 import BeautifulSoup
 import requests
 
@@ -20,10 +20,10 @@ class EPUBBuilder:
             title: str,
             author: str = 'AWS Documentation',
             language: str = 'en',
-            identifier: Optional[str] = None):
-        self.book = epub.EpubBook()
-        self.title = title
-        self.author = author
+            identifier: Optional[str] = None) -> None:
+        self.book: epub.EpubBook = epub.EpubBook()
+        self.title: str = title
+        self.author: str = author
 
         # Set metadata
         self.book.set_title(title)
@@ -37,7 +37,7 @@ class EPUBBuilder:
         self.toc_items: List[epub.EpubHtml] = []
         self.spine: List[Union[str, epub.EpubHtml]] = ['nav']
 
-    def add_cover(self, cover_icon_url):
+    def add_cover(self, cover_icon_url: str) -> None:
         """Generate and add cover image to the book."""
 
         try:
@@ -71,7 +71,7 @@ class EPUBBuilder:
 
             traceback.print_exc()
 
-    def add_css(self):
+    def add_css(self) -> epub.EpubItem:
         """Add default CSS stylesheet to the book."""
         css_content = '''
 @namespace epub "http://www.idpf.org/2007/ops";
@@ -136,13 +136,13 @@ a {
         self.book.add_item(nav_css)
         return nav_css
 
-    def sanitize_filename(self, title):
+    def sanitize_filename(self, title: str) -> str:
         """Convert title to a valid filename."""
         filename = re.sub(r'[^\w\s-]', '', title)
         filename = re.sub(r'[-\s]+', '_', filename)
         return filename[:50].lower()
 
-    def add_chapter(self, title, content):
+    def add_chapter(self, title: str, content: str) -> epub.EpubHtml:
         """Add a chapter to the book."""
         filename = self.sanitize_filename(title)
 
@@ -164,7 +164,7 @@ a {
 
         return chapter
 
-    def _clean_content(self, html_content):
+    def _clean_content(self, html_content: str) -> str:
         """Clean HTML content for EPUB compatibility."""
         if not html_content:
             return '<p>Content not available</p>'
@@ -192,7 +192,7 @@ a {
 
         return content
 
-    def finalize(self):
+    def finalize(self) -> None:
         """Finalize the book structure."""
         # Add table of contents
         self.book.toc = self.toc_items
@@ -204,11 +204,11 @@ a {
         # Set spine
         self.book.spine = self.spine
 
-    def write(self, output_path):
+    def write(self, output_path: str) -> None:
         """Write the EPUB file."""
         epub.write_epub(output_path, self.book)
         print(f"EPUB saved to: {output_path}")
 
-    def get_chapter_count(self):
+    def get_chapter_count(self) -> int:
         """Return the number of chapters in the book."""
         return len(self.chapters)

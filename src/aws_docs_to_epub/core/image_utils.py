@@ -4,12 +4,14 @@ import urllib.request
 import io
 import traceback
 import gzip
+from typing import Tuple, Optional, List, Union
 
 from PIL import Image, ImageDraw, ImageFont
-from cairosvg import svg2png  # type: ignore[import-untyped]
+from cairosvg import svg2png
+import requests
 
 
-def fetch_image_from_url(url, session):
+def fetch_image_from_url(url: str, session: requests.Session) -> Tuple[bytes, str]:
     """Fetch an image from a URL, handling SVG compression."""
 
     # Determine file extension
@@ -59,7 +61,7 @@ def fetch_image_from_url(url, session):
         return response.content, ext
 
 
-def fetch_local_image(filepath):
+def fetch_local_image(filepath: str) -> Tuple[bytes, str]:
     """Fetch an image from a local file."""
     url_lower = filepath.lower()
     if '.png' in url_lower:
@@ -79,7 +81,7 @@ def fetch_local_image(filepath):
         return f.read(), ext
 
 
-def convert_svg_to_png(svg_data, target_width=1280):
+def convert_svg_to_png(svg_data: bytes, target_width: int = 1280) -> Optional[Image.Image]:
     """Convert SVG data to PNG using cairosvg."""
     try:
 
@@ -94,11 +96,11 @@ def convert_svg_to_png(svg_data, target_width=1280):
     return None
 
 
-def _load_icon_image(icon_data, icon_ext):
+def _load_icon_image(icon_data: bytes, icon_ext: str) -> Image.Image:
     """Load and process icon image, handling SVG conversion."""
     if icon_ext.lower() == 'svg':
         print("Converting SVG to PNG...")
-        print(f"SVG data starts with: {icon_data[:50]}")
+        print(f"SVG data starts with: {icon_data[:50]!r}")
 
         icon_img = convert_svg_to_png(icon_data, target_width=1280)
         if not icon_img:
@@ -106,7 +108,7 @@ def _load_icon_image(icon_data, icon_ext):
             icon_img = Image.new('RGBA', (1280, 1280), color='#E0E0E0')
             placeholder_draw = ImageDraw.Draw(icon_img)
             placeholder_draw.rectangle(
-                [100, 100, 1180, 1180], outline='#999999', width=10)
+                ((100, 100), (1180, 1180)), outline='#999999', width=10)
     else:
         icon_img = Image.open(io.BytesIO(icon_data))
 
@@ -116,7 +118,7 @@ def _load_icon_image(icon_data, icon_ext):
     return icon_img
 
 
-def _resize_icon(icon_img, target_size=1280):
+def _resize_icon(icon_img: Image.Image, target_size: int = 1280) -> Image.Image:
     """Resize icon to target size while maintaining aspect ratio."""
     aspect_ratio = icon_img.width / icon_img.height
 
@@ -130,7 +132,7 @@ def _resize_icon(icon_img, target_size=1280):
     return icon_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 
-def _load_font():
+def _load_font() -> Union[ImageFont.FreeTypeFont, ImageFont.ImageFont]:
     """Load a suitable font for the cover text."""
     try:
         return ImageFont.truetype(
@@ -142,11 +144,12 @@ def _load_font():
             return ImageFont.load_default()
 
 
-def _split_text_into_lines(text, font, draw, max_width):
+def _split_text_into_lines(text: str, font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
+                           draw: ImageDraw.ImageDraw, max_width: int) -> List[str]:
     """Split text into lines that fit within max_width."""
     words = text.split()
-    lines = []
-    current_line = []
+    lines: List[str] = []
+    current_line: List[str] = []
 
     for word in words:
         test_line = ' '.join(current_line + [word])
@@ -164,7 +167,9 @@ def _split_text_into_lines(text, font, draw, max_width):
     return lines
 
 
-def _calculate_text_height(lines, font, draw, line_spacing=20):
+def _calculate_text_height(
+    lines: List[str], font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
+        draw: ImageDraw.ImageDraw, line_spacing: int = 20) -> int:
     """Calculate total height of text lines."""
     total_height = 0
     for line in lines:
@@ -173,10 +178,12 @@ def _calculate_text_height(lines, font, draw, line_spacing=20):
         total_height += text_height + line_spacing
     if total_height > 0:
         total_height -= line_spacing
-    return total_height
+    return int(total_height)
 
 
-def _draw_text_lines(draw, lines, font, cover_width, start_y, line_spacing=20):
+def _draw_text_lines(draw: ImageDraw.ImageDraw, lines: List[str],
+                     font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
+                     cover_width: int, start_y: int, line_spacing: int = 20) -> None:
     """Draw text lines centered on the cover."""
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
@@ -187,7 +194,8 @@ def _draw_text_lines(draw, lines, font, cover_width, start_y, line_spacing=20):
         draw.text((text_x, line_y), line, fill='#232F3E', font=font)
 
 
-def render_cover_image(service_name, icon_data, icon_ext, cover_width=1600, cover_height=2400):
+def render_cover_image(service_name: str, icon_data: bytes, icon_ext: str,
+                       cover_width: int = 1600, cover_height: int = 2400) -> Optional[bytes]:
     """
     Render a cover image as PNG with icon and service name.
 

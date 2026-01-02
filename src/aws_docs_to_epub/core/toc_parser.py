@@ -3,19 +3,20 @@
 from urllib.parse import urljoin
 import json
 import os
+from typing import Optional, Dict, Any, List, Set, Union
 import requests
 
 
 class TOCParser:
     """Handles parsing of AWS documentation table of contents."""
 
-    def __init__(self, session, base_url, guide_path):
-        self.session = session
-        self.base_url = base_url
-        self.guide_path = guide_path
-        self.visited_urls = set()
+    def __init__(self, session: requests.Session, base_url: str, guide_path: str) -> None:
+        self.session: requests.Session = session
+        self.base_url: str = base_url
+        self.guide_path: str = guide_path
+        self.visited_urls: Set[str] = set()
 
-    def fetch_toc_json(self):
+    def fetch_toc_json(self) -> Optional[Any]:
         """Fetch the TOC JSON from the AWS documentation."""
         toc_url = urljoin(self.base_url + self.guide_path, 'toc-contents.json')
         try:
@@ -27,9 +28,9 @@ class TOCParser:
             print(f"Error fetching TOC JSON: {e}")
             return None
 
-    def parse_toc_json(self, toc_data, parent_title=''):
+    def parse_toc_json(self, toc_data: Union[Dict[str, Any], List[Any]], parent_title: str = '') -> List[Dict[str, str]]:
         """Recursively parse the TOC JSON and extract all pages."""
-        pages = []
+        pages: List[Dict[str, str]] = []
 
         if isinstance(toc_data, dict):
             title = toc_data.get('title', '')
@@ -55,7 +56,7 @@ class TOCParser:
 
         return pages
 
-    def load_toc(self, json_file=None):
+    def load_toc(self, json_file: Optional[str] = None) -> List[Dict[str, str]]:
         """Load and parse the table of contents JSON file."""
         try:
             if json_file and os.path.exists(json_file):

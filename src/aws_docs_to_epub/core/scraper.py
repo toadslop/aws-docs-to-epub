@@ -2,15 +2,16 @@
 
 from urllib.parse import urljoin
 import time
+from typing import Optional, Dict, Any, List, Set
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 
 class AWSScraper:
     """Handles scraping AWS documentation pages."""
 
-    def __init__(self):
-        self.session = requests.Session()
+    def __init__(self) -> None:
+        self.session: requests.Session = requests.Session()
         self.session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -26,9 +27,9 @@ class AWSScraper:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
-        self.visited_urls = set()
+        self.visited_urls: Set[str] = set()
 
-    def fetch_page(self, url):
+    def fetch_page(self, url: str) -> Optional[str]:
         """Fetch a page with retry logic."""
         max_retries = 3
         for attempt in range(max_retries):
@@ -48,7 +49,7 @@ class AWSScraper:
                     return None
         return None
 
-    def extract_content(self, html_content, url):
+    def extract_content(self, html_content: str, url: str) -> Optional[Dict[str, Any]]:
         """Extract the main content from a page."""
         soup = BeautifulSoup(html_content, 'lxml')
 
@@ -70,18 +71,18 @@ class AWSScraper:
             'images': images_in_page
         }
 
-    def _find_main_content(self, soup):
+    def _find_main_content(self, soup: BeautifulSoup) -> Optional[Tag]:
         """Find the main content area of the page."""
         main_content = soup.find('main') or soup.find('div', id='main-content') or \
             soup.find('div', class_='documentation-content')
-        return main_content or soup.find('body')
+        return main_content or soup.find('body')  # type: ignore[return-value]
 
-    def _extract_title(self, soup):
+    def _extract_title(self, soup: BeautifulSoup) -> str:
         """Extract the page title."""
         title_elem = soup.find('h1') or soup.find('title')
         return title_elem.get_text(strip=True) if title_elem else 'Untitled'
 
-    def _clean_content(self, main_content):
+    def _clean_content(self, main_content: Tag) -> None:
         """Remove unwanted elements from the content."""
         # Remove navigation, scripts, etc.
         for elem in main_content.find_all(
@@ -112,7 +113,7 @@ class AWSScraper:
         # Remove invalid attributes
         self._remove_invalid_attributes(main_content)
 
-    def _remove_invalid_attributes(self, main_content):
+    def _remove_invalid_attributes(self, main_content: Tag) -> None:
         """Remove id and other invalid attributes from elements."""
         invalid_attrs = ['tab-id', 'data-target', 'data-toggle', 'copy']
         for elem in main_content.find_all(True):
@@ -122,21 +123,27 @@ class AWSScraper:
                 if elem.has_attr(attr):
                     del elem[attr]
 
-    def _fix_links_and_images(self, main_content, url):
+    def _fix_links_and_images(self, main_content: Tag, url: str) -> None:
         """Convert relative URLs to absolute URLs."""
         for link in main_content.find_all('a', href=True):
-            link['href'] = urljoin(url, link['href'])
+            href = link.get('href', '')
+            if isinstance(href, str):
+                link['href'] = urljoin(url, href)
 
         for img in main_content.find_all('img', src=True):
-            img['src'] = urljoin(url, img['src'])
+            src = img.get('src', '')
+            if isinstance(src, str):
+                img['src'] = urljoin(url, src)
 
-    def scrape_pages(self, page_links, max_pages=None):
+    def scrape_pages(self,
+                     page_links: List[Dict[str, str]],
+                     max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
         """Scrape content from a list of page links."""
         if max_pages and max_pages > 0:
             page_links = page_links[:max_pages]
             print(f"Limiting to first {max_pages} pages for testing")
 
-        all_pages = []
+        all_pages: List[Dict[str, Any]] = []
         for i, link in enumerate(page_links, 1):
             print(f"Processing page {i}/{len(page_links)}: {link['title']}")
             html = self.fetch_page(link['url'])
@@ -148,7 +155,7 @@ class AWSScraper:
 
         return all_pages
 
-    def extract_guide_title(self, html):
+    def extract_guide_title(self, html: str) -> str:
         """Extract the guide title from a page's meta tags."""
         soup = BeautifulSoup(html, 'html.parser')
 
@@ -156,7 +163,7 @@ class AWSScraper:
         product_meta = soup.find('meta', {'name': 'product'})
         guide_meta = soup.find('meta', {'name': 'guide'})
 
-        if product_meta and guide_meta:
+        if product_meta and guide_meta and hasattr(product_meta, 'get') and hasattr(guide_meta, 'get'):
             product = product_meta.get('content', '')
             guide = guide_meta.get('content', '')
             if product and guide:
@@ -170,3 +177,5 @@ class AWSScraper:
             if ' - ' in title_text:
                 return title_text.split(' - ', 1)[1]
             return title_text
+
+        return "AWS Documentation"

@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional, Any, Dict, List
 
-from ebooklib import epub  # type: ignore[import-untyped]
+from ebooklib import epub
 from bs4 import BeautifulSoup
 
 from .core.scraper import AWSScraper
@@ -67,7 +67,7 @@ class AWSDocsToEpub:
     """
 
     def __init__(self, start_url: str, cover_icon_url: Optional[str] = None) -> None:
-        self.cover_icon_url = cover_icon_url
+        self.cover_icon_url: Optional[str] = cover_icon_url
 
         # Parse the URL to extract guide information
         parsed_url = urlsplit(start_url)
@@ -81,7 +81,7 @@ class AWSDocsToEpub:
             guide_type = path_parts[2]
             guide_path = f"/{service_name}/{version}/{guide_type}/"
 
-            self.config = GuideConfig(
+            self.config: GuideConfig = GuideConfig(
                 service_name=service_name,
                 version=version,
                 guide_type=guide_type,
@@ -93,11 +93,11 @@ class AWSDocsToEpub:
                 f"Unable to parse AWS documentation URL: {start_url}")
 
         # Initialize components
-        self.scraper = AWSScraper()
-        self.toc_parser = TOCParser(
+        self.scraper: AWSScraper = AWSScraper()
+        self.toc_parser: TOCParser = TOCParser(
             self.scraper.session, self.config.base_url, self.config.guide_path)
 
-        self.metadata = GuideMetadata()
+        self.metadata: GuideMetadata = GuideMetadata()
 
     def scrape_all_pages(
         self,
