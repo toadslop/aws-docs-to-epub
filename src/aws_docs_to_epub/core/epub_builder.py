@@ -152,6 +152,16 @@ pre, code {
     overflow-x: auto;
 }
 
+code.userinput, .userinput {
+    display: inline;
+    font-family: Monaco, Courier New, monospace;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
 img {
     max-width: 100%;
     height: auto;
