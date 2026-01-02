@@ -3,7 +3,7 @@
 from urllib.parse import urlsplit
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
 from ebooklib import epub  # type: ignore[import-untyped]
 from bs4 import BeautifulSoup
@@ -29,9 +29,9 @@ class GuideConfig:
 class GuideMetadata:
     """Metadata about the documentation guide."""
     title: Optional[str] = None
-    metadata: Optional[dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.metadata is None:
             self.metadata = {}
 
@@ -66,7 +66,7 @@ class AWSDocsToEpub:
         >>> converter.create_epub(pages)
     """
 
-    def __init__(self, start_url, cover_icon_url=None):
+    def __init__(self, start_url: str, cover_icon_url: Optional[str] = None) -> None:
         self.cover_icon_url = cover_icon_url
 
         # Parse the URL to extract guide information
@@ -99,7 +99,11 @@ class AWSDocsToEpub:
 
         self.metadata = GuideMetadata()
 
-    def scrape_all_pages(self, json_file=None, max_pages=None):
+    def scrape_all_pages(
+        self,
+        json_file: Optional[str] = None,
+        max_pages: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
         Scrape all pages from the AWS documentation guide.
 
@@ -135,11 +139,15 @@ class AWSDocsToEpub:
                 print(f"Guide title: {self.metadata.title}")
 
         # Scrape pages
-        pages = self.scraper.scrape_pages(pages_info)
+        pages: List[Dict[str, Any]] = self.scraper.scrape_pages(pages_info)
 
         return pages
 
-    def create_epub(self, pages, output_filename=None):
+    def create_epub(
+        self,
+        pages: List[Dict[str, Any]],
+        output_filename: Optional[str] = None
+    ) -> Optional[str]:
         """
         Create an EPUB file from scraped pages.
 
@@ -202,7 +210,11 @@ class AWSDocsToEpub:
 
         return output_filename
 
-    def _download_images(self, pages, builder):
+    def _download_images(
+        self,
+        pages: List[Dict[str, Any]],
+        builder: EPUBBuilder
+    ) -> Dict[str, str]:
         """Download all images referenced in pages and add to EPUB."""
 
         image_mapping = {}
@@ -219,7 +231,7 @@ class AWSDocsToEpub:
                         image_mapping[img_url] = local_filename
 
                         # Determine media type from extension
-                        media_types = {
+                        media_types: Dict[str, str] = {
                             'jpg': 'image/jpeg',
                             'jpeg': 'image/jpeg',
                             'png': 'image/png',
@@ -241,7 +253,12 @@ class AWSDocsToEpub:
 
         return image_mapping
 
-    def _add_chapter_with_images(self, builder, page, image_mapping):
+    def _add_chapter_with_images(
+        self,
+        builder: EPUBBuilder,
+        page: Dict[str, Any],
+        image_mapping: Dict[str, str]
+    ) -> None:
         """Add a chapter to the book with local image references."""
 
         content = page['content']
@@ -249,8 +266,9 @@ class AWSDocsToEpub:
 
         # Replace external image URLs with local references
         for img in soup.find_all('img', src=True):
-            if img['src'] in image_mapping:
-                img['src'] = image_mapping[img['src']]
+            img_src = str(img['src'])
+            if img_src in image_mapping:
+                img['src'] = image_mapping[img_src]
 
         # Check if content already has an h1 heading at the start
         first_h1 = soup.find('h1')
