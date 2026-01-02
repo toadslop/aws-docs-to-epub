@@ -28,7 +28,9 @@ class TOCParser:
             print(f"Error fetching TOC JSON: {e}")
             return None
 
-    def parse_toc_json(self, toc_data: Union[Dict[str, Any], List[Any]], parent_title: str = '') -> List[Dict[str, str]]:
+    def parse_toc_json(
+            self, toc_data: Union[Dict[str, Any], List[Any]], parent_title: str = ''
+    ) -> List[Dict[str, str]]:
         """Recursively parse the TOC JSON and extract all pages."""
         pages: List[Dict[str, str]] = []
 
