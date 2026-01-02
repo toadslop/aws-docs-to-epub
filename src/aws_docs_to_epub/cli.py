@@ -3,12 +3,12 @@
 
 import argparse
 import sys
-from typing import NoReturn
 
 from .converter import AWSDocsToEpub
 
 
 def main() -> None:
+    # pylint: disable=line-too-long
     """Main entry point for the AWS Documentation to EPUB converter.
 
     Parses command-line arguments, validates the input URL, and orchestrates the conversion

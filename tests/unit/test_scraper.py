@@ -347,3 +347,91 @@ def test_extract_guide_title_only_title_tag(create_scraper):
     title = create_scraper.extract_guide_title(html)
 
     assert title == "AWS Lambda Guide"
+
+
+def test_clean_content_removes_aws_specific_elements(create_scraper):
+    """Test that AWS-specific custom elements are removed."""
+    html = """
+    <div>
+        <p>Content to keep</p>
+        <awsdocs-page-utilities>Utility content</awsdocs-page-utilities>
+        <awsdocs-copyright>Copyright</awsdocs-copyright>
+        <awsdocs-thumb-feedback>Feedback</awsdocs-thumb-feedback>
+        <awsui-icon>Icon</awsui-icon>
+        <div class="prev-next">Navigation</div>
+        <div class="code-btn-container">Button</div>
+        <div class="btn-copy-code">Copy</div>
+        <div id="js_error_message">Error</div>
+        <div id="doc-conventions">Conventions</div>
+        <div id="main-col-footer">Footer</div>
+    </div>
+    """
+    soup = BeautifulSoup(html, 'lxml')
+    main_content = soup.find('div')
+
+    create_scraper._clean_content(  # pylint: disable=protected-access
+        main_content)
+
+    # AWS-specific elements should be removed
+    assert main_content is not None
+    assert main_content.find('awsdocs-page-utilities') is None
+    assert main_content.find('awsdocs-copyright') is None
+    assert main_content.find('awsdocs-thumb-feedback') is None
+    assert main_content.find('awsui-icon') is None
+
+    # Class-based removals
+    assert main_content.find('div', class_='prev-next') is None
+    assert main_content.find('div', class_='code-btn-container') is None
+    assert main_content.find('div', class_='btn-copy-code') is None
+
+    # ID-based removals
+    assert main_content.find('div', id='js_error_message') is None
+    assert main_content.find('div', id='doc-conventions') is None
+    assert main_content.find('div', id='main-col-footer') is None
+
+    # Content should be preserved
+    assert 'Content to keep' in str(main_content)
+
+
+def test_remove_invalid_attributes_removes_all_attrs(create_scraper):
+    """Test that all invalid attributes are properly removed."""
+    html = """
+    <div>
+        <div id="test" tab-id="1" data-target="modal" data-toggle="collapse" copy="true">
+            <p id="para" tab-id="2">Content</p>
+            <span data-target="#menu">Link</span>
+        </div>
+    </div>
+    """
+    soup = BeautifulSoup(html, 'lxml')
+    main_content = soup.find('div')
+
+    create_scraper._remove_invalid_attributes(  # pylint: disable=protected-access
+        main_content)
+
+    # Check all elements have invalid attributes removed
+
+    assert main_content is not None
+    for elem in main_content.find_all(True):
+        assert not elem.has_attr('id'), f"Element {elem.name} still has id"
+        assert not elem.has_attr(
+            'tab-id'), f"Element {elem.name} still has tab-id"
+        assert not elem.has_attr(
+            'data-target'), f"Element {elem.name} still has data-target"
+        assert not elem.has_attr(
+            'data-toggle'), f"Element {elem.name} still has data-toggle"
+        assert not elem.has_attr('copy'), f"Element {elem.name} still has copy"
+
+
+def test_fetch_page_max_retries_exhausted(create_scraper):
+    """Test that None is returned when max retries are exhausted."""
+    # Simulate all retries failing
+    with patch.object(
+            create_scraper.session,
+            'get',
+            side_effect=[requests.RequestException("Error")] * 4
+    ):
+        with patch('time.sleep'):  # Don't actually sleep
+            result = create_scraper.fetch_page("https://example.com")
+            # Should return None after exhausting all retries
+            assert result is None

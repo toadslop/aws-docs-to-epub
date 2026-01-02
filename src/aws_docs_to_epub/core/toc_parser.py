@@ -30,27 +30,36 @@ class TOCParser:
 
     def parse_toc_json(
             self, toc_data: Union[Dict[str, Any], List[Any]], parent_title: str = ''
-    ) -> List[Dict[str, str]]:
-        """Recursively parse the TOC JSON and extract all pages."""
-        pages: List[Dict[str, str]] = []
+    ) -> List[Dict[str, Any]]:
+        """Recursively parse the TOC JSON and extract all pages with hierarchy."""
+        pages: List[Dict[str, Any]] = []
 
         if isinstance(toc_data, dict):
             title = toc_data.get('title', '')
             href = toc_data.get('href', '')
 
+            # Create page entry with children support
+            page_entry: Dict[str, Any] = {
+                'title': title,
+                'url': None,
+                'children': []
+            }
+
             if href and not href.endswith('.pdf'):
                 full_url = urljoin(self.base_url + self.guide_path, href)
                 if full_url not in self.visited_urls:
-                    pages.append({
-                        'url': full_url,
-                        'title': title
-                    })
+                    page_entry['url'] = full_url
                     self.visited_urls.add(full_url)
 
             # Recursively process nested contents
             if 'contents' in toc_data:
                 for item in toc_data['contents']:
-                    pages.extend(self.parse_toc_json(item, title))
+                    child_pages = self.parse_toc_json(item, title)
+                    page_entry['children'].extend(child_pages)
+
+            # Only add entries that have a URL or children
+            if page_entry['url'] or page_entry['children']:
+                pages.append(page_entry)
 
         elif isinstance(toc_data, list):
             for item in toc_data:
@@ -58,7 +67,7 @@ class TOCParser:
 
         return pages
 
-    def load_toc(self, json_file: Optional[str] = None) -> List[Dict[str, str]]:
+    def load_toc(self, json_file: Optional[str] = None) -> List[Dict[str, Any]]:
         """Load and parse the table of contents JSON file."""
         try:
             if json_file and os.path.exists(json_file):
@@ -70,7 +79,18 @@ class TOCParser:
                     return []
 
             pages = self.parse_toc_json(toc_data)
-            print(f"Loaded {len(pages)} pages from TOC")
+
+            # Count total pages (including nested)
+            def count_pages(page_list: List[Dict[str, Any]]) -> int:
+                count = 0
+                for page in page_list:
+                    if page.get('url'):
+                        count += 1
+                    count += count_pages(page.get('children', []))
+                return count
+
+            total = count_pages(pages)
+            print(f"Loaded {total} pages from TOC (with hierarchy)")
             return pages
         except (OSError, json.JSONDecodeError) as e:
             print(f"Error loading TOC: {e}")

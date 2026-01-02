@@ -230,3 +230,199 @@ def test_clean_content_handles_none_body(epub_builder):
     # Should return something valid
     assert cleaned is not None
     assert len(cleaned) > 0
+
+
+def test_build_nested_toc_with_children(epub_builder):
+    """Test building nested TOC structure with parent-child relationships."""
+    # Create chapters
+    parent = epub_builder.add_chapter(
+        "Parent Chapter", "<p>Parent content</p>")
+    child1 = epub_builder.add_chapter("Child 1", "<p>Child 1 content</p>")
+    child2 = epub_builder.add_chapter("Child 2", "<p>Child 2 content</p>")
+
+    # Create TOC structure
+    toc_structure = [
+        {
+            'url': 'parent.html',
+            'title': 'Parent Chapter',
+            'children': [
+                {'url': 'child1.html', 'title': 'Child 1', 'children': []},
+                {'url': 'child2.html', 'title': 'Child 2', 'children': []}
+            ]
+        }
+    ]
+
+    chapter_map = {
+        'parent.html': parent,
+        'child1.html': child1,
+        'child2.html': child2
+    }
+
+    # Build nested TOC
+    result = epub_builder._build_nested_toc(  # pylint: disable=protected-access
+        toc_structure, chapter_map)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 1
+    # First element should be a tuple (parent, children)
+    assert isinstance(result[0], tuple)
+    assert result[0][0] == parent
+    # Children should be a tuple
+    assert isinstance(result[0][1], tuple)
+    assert len(result[0][1]) == 2
+
+
+def test_build_nested_toc_leaf_nodes(epub_builder):
+    """Test building nested TOC with leaf nodes (no children)."""
+    chapter1 = epub_builder.add_chapter("Chapter 1", "<p>Content 1</p>")
+    chapter2 = epub_builder.add_chapter("Chapter 2", "<p>Content 2</p>")
+
+    toc_structure = [
+        {'url': 'ch1.html', 'title': 'Chapter 1', 'children': []},
+        {'url': 'ch2.html', 'title': 'Chapter 2', 'children': []}
+    ]
+
+    chapter_map = {
+        'ch1.html': chapter1,
+        'ch2.html': chapter2
+    }
+
+    result = epub_builder._build_nested_toc(  # pylint: disable=protected-access
+        toc_structure, chapter_map)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    assert result[0] == chapter1
+    assert result[1] == chapter2
+
+
+def test_build_nested_toc_missing_chapter(epub_builder):
+    """Test building nested TOC when chapter is missing from map."""
+    chapter1 = epub_builder.add_chapter("Chapter 1", "<p>Content 1</p>")
+
+    toc_structure = [
+        {'url': 'ch1.html', 'title': 'Chapter 1', 'children': []},
+        {'url': 'missing.html', 'title': 'Missing', 'children': []}  # Not in map
+    ]
+
+    chapter_map = {
+        'ch1.html': chapter1
+    }
+
+    result = epub_builder._build_nested_toc(  # pylint: disable=protected-access
+        toc_structure, chapter_map)
+
+    # Should only include the chapter that exists
+    assert isinstance(result, tuple)
+    assert len(result) == 1
+    assert result[0] == chapter1
+
+
+def test_build_nested_toc_no_url_with_children(epub_builder):
+    """Test building nested TOC with section that has no URL but has children."""
+    child1 = epub_builder.add_chapter("Child 1", "<p>Child 1 content</p>")
+    child2 = epub_builder.add_chapter("Child 2", "<p>Child 2 content</p>")
+
+    toc_structure = [
+        {
+            'url': None,  # Section header with no page
+            'title': 'Section',
+            'children': [
+                {'url': 'child1.html', 'title': 'Child 1', 'children': []},
+                {'url': 'child2.html', 'title': 'Child 2', 'children': []}
+            ]
+        }
+    ]
+
+    chapter_map = {
+        'child1.html': child1,
+        'child2.html': child2
+    }
+
+    result = epub_builder._build_nested_toc(  # pylint: disable=protected-access
+        toc_structure, chapter_map)
+
+    # Children should be included directly without parent
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    assert child1 in result
+    assert child2 in result
+
+
+def test_build_nested_toc_deep_nesting(epub_builder):
+    """Test building deeply nested TOC structure."""
+    ch1 = epub_builder.add_chapter("Level 1", "<p>L1</p>")
+    ch2 = epub_builder.add_chapter("Level 2", "<p>L2</p>")
+    ch3 = epub_builder.add_chapter("Level 3", "<p>L3</p>")
+
+    toc_structure = [
+        {
+            'url': 'l1.html',
+            'title': 'Level 1',
+            'children': [
+                {
+                    'url': 'l2.html',
+                    'title': 'Level 2',
+                    'children': [
+                        {'url': 'l3.html', 'title': 'Level 3', 'children': []}
+                    ]
+                }
+            ]
+        }
+    ]
+
+    chapter_map = {
+        'l1.html': ch1,
+        'l2.html': ch2,
+        'l3.html': ch3
+    }
+
+    result = epub_builder._build_nested_toc(  # pylint: disable=protected-access
+        toc_structure, chapter_map)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 1
+    # Verify 3 levels of nesting
+    assert isinstance(result[0], tuple)  # Level 1 with children
+    assert result[0][0] == ch1
+    assert isinstance(result[0][1], tuple)  # Level 2 with children
+    assert isinstance(result[0][1][0], tuple)
+    assert result[0][1][0][0] == ch2
+
+
+def test_finalize_with_nested_toc(epub_builder):
+    """Test finalizing book with nested TOC structure."""
+    chapter1 = epub_builder.add_chapter("Chapter 1", "<p>Content 1</p>")
+    chapter2 = epub_builder.add_chapter("Chapter 2", "<p>Content 2</p>")
+
+    toc_structure = [
+        {
+            'url': 'ch1.html',
+            'title': 'Chapter 1',
+            'children': [
+                {'url': 'ch2.html', 'title': 'Chapter 2', 'children': []}
+            ]
+        }
+    ]
+
+    chapter_map = {
+        'ch1.html': chapter1,
+        'ch2.html': chapter2
+    }
+
+    epub_builder.finalize(toc_structure=toc_structure, chapter_map=chapter_map)
+
+    # Verify TOC was set to nested structure
+    assert isinstance(epub_builder.book.toc, tuple)
+    assert len(epub_builder.book.toc) == 1
+
+
+def test_finalize_without_nested_toc(epub_builder):
+    """Test finalizing book without nested TOC (flat fallback)."""
+    epub_builder.add_chapter("Chapter 1", "<p>Content 1</p>")
+    epub_builder.add_chapter("Chapter 2", "<p>Content 2</p>")
+
+    epub_builder.finalize()
+
+    # Should use flat toc_items
+    assert epub_builder.book.toc == epub_builder.toc_items
