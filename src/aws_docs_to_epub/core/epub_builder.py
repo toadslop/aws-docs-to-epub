@@ -81,12 +81,62 @@ body {
     font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif;
     margin: 5%;
     padding: 0;
+    font-size: 1em;
+    line-height: 1.5;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1 {
+    font-size: 1.6em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    margin: 1.2em 0 0.6em 0;
+    line-height: 1.3;
+}
+
+h2 {
+    font-size: 1.4em;
+    font-weight: bold;
     text-align: left;
     color: #000;
     margin: 1em 0 0.5em 0;
+    line-height: 1.3;
+}
+
+h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    margin: 1em 0 0.5em 0;
+    line-height: 1.3;
+}
+
+h4 {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: left;
+    color: #222;
+    margin: 0.9em 0 0.4em 0;
+    line-height: 1.3;
+}
+
+h5 {
+    font-size: 1em;
+    font-weight: bold;
+    text-align: left;
+    color: #333;
+    margin: 0.8em 0 0.4em 0;
+    line-height: 1.3;
+}
+
+h6 {
+    font-size: 0.95em;
+    font-weight: bold;
+    text-align: left;
+    color: #444;
+    margin: 0.8em 0 0.4em 0;
+    line-height: 1.3;
 }
 
 p {
