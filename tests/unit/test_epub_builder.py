@@ -100,7 +100,7 @@ def test_add_css(epub_builder):
     css = epub_builder.add_css()
 
     assert css is not None
-    assert css.file_name == "style/nav.css"
+    assert css.file_name == "style/styles.css"
 
 
 def test_add_cover_from_file(epub_builder):
@@ -412,9 +412,11 @@ def test_finalize_with_nested_toc(epub_builder):
 
     epub_builder.finalize(toc_structure=toc_structure, chapter_map=chapter_map)
 
-    # Verify TOC was set to nested structure
-    assert isinstance(epub_builder.book.toc, tuple)
+    # Verify TOC was set to nested structure (it's a list containing tuples)
+    assert isinstance(epub_builder.book.toc, list)
     assert len(epub_builder.book.toc) == 1
+    # First element should be a tuple (parent with children)
+    assert isinstance(epub_builder.book.toc[0], tuple)
 
 
 def test_finalize_without_nested_toc(epub_builder):
@@ -426,3 +428,23 @@ def test_finalize_without_nested_toc(epub_builder):
 
     # Should use flat toc_items
     assert epub_builder.book.toc == epub_builder.toc_items
+
+
+def test_add_chapter_links_css(epub_builder):
+    """Test that chapters have CSS linked when add_css is called."""
+    # First, add CSS
+    css = epub_builder.add_css()
+
+    # Then add a chapter
+    chapter = epub_builder.add_chapter("Test Chapter", "<p>Test content</p>")
+
+    # Verify CSS is stored in builder
+    assert epub_builder.css is not None
+    assert epub_builder.css == css
+
+    # Verify chapter has CSS linked
+    css_links = [link for link in chapter.get_links(
+    ) if link.get('type') == 'text/css']
+    assert len(css_links) > 0
+    assert css_links[0]['href'] == 'style/styles.css'
+    assert css_links[0]['rel'] == 'stylesheet'
