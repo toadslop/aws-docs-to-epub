@@ -11,10 +11,12 @@ import re
 import json
 import argparse
 import sys
+import io
 
 import requests
 from bs4 import BeautifulSoup
 from ebooklib import epub
+from PIL import Image, ImageDraw, ImageFont  # type: ignore
 
 
 class AWSDocsToEpub:
@@ -173,9 +175,31 @@ class AWSDocsToEpub:
             # Otherwise treat as URL
             else:
                 print(f"Fetching cover icon: {self.cover_icon_url}")
-                response = self.session.get(self.cover_icon_url, timeout=30)
-                response.raise_for_status()
-                return response.content, ext, media_type
+                # For SVG, explicitly handle encoding to avoid compression issues
+                if ext == 'svg':
+                    # Create a new session without auto-decompression for better control
+                    import urllib.request
+                    req = urllib.request.Request(self.cover_icon_url)
+                    req.add_header('User-Agent', 'Mozilla/5.0')
+                    req.add_header('Accept-Encoding', 'gzip, deflate')
+
+                    with urllib.request.urlopen(req, timeout=30) as response:
+                        content = response.read()
+
+                        # Check if it's gzip compressed
+                        if content[:2] == b'\x1f\x8b':
+                            print("Decompressing gzip-encoded SVG")
+                            import gzip
+                            content = gzip.decompress(content)
+
+                        print(
+                            f"SVG content after decompression starts with: {content[:50]}")
+                        return content, ext, media_type
+                else:
+                    response = self.session.get(
+                        self.cover_icon_url, timeout=30)
+                    response.raise_for_status()
+                    return response.content, ext, media_type
         except (OSError, requests.RequestException) as e:
             print(f"Warning: Failed to fetch cover icon: {e}")
             return None, None, None
@@ -379,7 +403,7 @@ class AWSDocsToEpub:
             'images': images_in_page
         }
 
-    def scrape_all_pages(self):
+    def scrape_all_pages(self, max_pages=None):
         """Scrape all pages from the guide"""
         # Try to load from TOC JSON first
         nav_links = self.load_toc_from_json()
@@ -407,6 +431,11 @@ class AWSDocsToEpub:
                     0, {'url': self.start_url, 'title': start_title})
                 self.visited_urls.add(self.start_url)
 
+        # Limit pages if max_pages is specified
+        if max_pages and max_pages > 0:
+            nav_links = nav_links[:max_pages]
+            print(f"Limiting to first {max_pages} pages for testing")
+
         # Fetch all pages
         all_pages = []
         for i, link in enumerate(nav_links, 1):
@@ -419,6 +448,184 @@ class AWSDocsToEpub:
             time.sleep(0.5)  # Be respectful with rate limiting
 
         return all_pages
+
+    def render_cover_as_png(self, service_name, icon_data, icon_ext):
+        """Render a cover image as PNG with icon and service name"""
+        try:
+            # Create a 1600x2400 cover image (standard ebook cover size)
+            cover_width, cover_height = 1600, 2400
+            cover_img = Image.new(
+                'RGB', (cover_width, cover_height), color='#FFFFFF')
+            draw = ImageDraw.Draw(cover_img)
+
+            # Load and resize the icon
+            # Handle SVG files by converting to PNG first
+            if icon_ext.lower() == 'svg':
+                print("Converting SVG to PNG...")
+
+                # Check if the SVG is gzip compressed (common for .svgz files or compressed svgs)
+                if icon_data[:2] == b'\x1f\x8b':
+                    print("Detected gzip-compressed SVG, decompressing...")
+                    import gzip
+                    icon_data = gzip.decompress(icon_data)
+
+                # Debug: print first few bytes to see what we're dealing with
+                print(f"SVG data starts with: {icon_data[:50]}")
+
+                svg_converted = False
+                try:
+                    from cairosvg import svg2png
+                    # Convert SVG to PNG at high resolution
+                    # Try without size constraints first to see actual dimensions
+                    try:
+                        png_data = svg2png(
+                            bytestring=icon_data, output_width=1280)
+                        if png_data:
+                            icon_img = Image.open(io.BytesIO(png_data))
+                            print(
+                                f"SVG conversion successful using cairosvg: {icon_img.size}")
+                            svg_converted = True
+                    except Exception as e:
+                        print(f"Cairosvg conversion attempt 1 failed: {e}")
+                        # Try with scale instead
+                        png_data = svg2png(bytestring=icon_data, scale=4.0)
+                        if png_data:
+                            icon_img = Image.open(io.BytesIO(png_data))
+                            print(
+                                f"SVG conversion successful with scale: {icon_img.size}")
+                            svg_converted = True
+                except ImportError as e:
+                    print(f"Cairosvg not available: {e}")
+                except Exception as e:
+                    print(f"Error with cairosvg: {type(e).__name__}: {e}")
+
+                if not svg_converted:
+                    print("Trying alternate SVG conversion method...")
+                    try:
+                        from svglib.svglib import svg2rlg
+                        from reportlab.graphics import renderPM
+                        import tempfile
+                        # Write SVG to temp file
+                        with tempfile.NamedTemporaryFile(suffix='.svg', delete=False, mode='wb') as tmp:
+                            tmp.write(icon_data)
+                            tmp_path = tmp.name
+                        # Convert using svglib
+                        drawing = svg2rlg(tmp_path)
+                        if drawing:
+                            png_data = renderPM.drawToString(
+                                drawing, fmt='PNG')
+                            icon_img = Image.open(io.BytesIO(png_data))
+                            print(
+                                f"SVG conversion successful using svglib: {icon_img.size}")
+                            svg_converted = True
+                        os.unlink(tmp_path)
+                    except Exception as e:
+                        print(
+                            f"Svglib conversion also failed: {type(e).__name__}: {e}")
+
+                if not svg_converted:
+                    print("All SVG conversion methods failed, using placeholder")
+                    # Create a placeholder image instead of failing
+                    icon_img = Image.new('RGBA', (1280, 1280), color='#E0E0E0')
+                    # Draw a simple placeholder
+                    placeholder_draw = ImageDraw.Draw(icon_img)
+                    placeholder_draw.rectangle(
+                        [100, 100, 1180, 1180], outline='#999999', width=10)
+            else:
+                icon_img = Image.open(io.BytesIO(icon_data))
+
+            # Convert to RGBA if needed
+            if icon_img.mode != 'RGBA':
+                icon_img = icon_img.convert('RGBA')
+
+            # Resize icon to fill most of the width while maintaining aspect ratio
+            # Target 80% of cover width (1280 pixels)
+            target_size = 1280
+            aspect_ratio = icon_img.width / icon_img.height
+
+            if aspect_ratio > 1:
+                # Wider than tall
+                new_width = target_size
+                new_height = int(target_size / aspect_ratio)
+            else:
+                # Taller than wide or square
+                new_height = target_size
+                new_width = int(target_size * aspect_ratio)
+
+            icon_img = icon_img.resize(
+                (new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Try to use a nice font, fall back to default if not available
+            try:
+                font = ImageFont.truetype(
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 120)
+            except (OSError, IOError):
+                try:
+                    font = ImageFont.truetype("arial.ttf", 120)
+                except (OSError, IOError):
+                    font = ImageFont.load_default()
+
+            # Split long text into multiple lines if needed
+            words = service_name.split()
+            lines = []
+            current_line = []
+
+            for word in words:
+                test_line = ' '.join(current_line + [word])
+                bbox = draw.textbbox((0, 0), test_line, font=font)
+                text_width = bbox[2] - bbox[0]
+                if text_width <= cover_width - 200:  # 100px margin on each side
+                    current_line.append(word)
+                else:
+                    if current_line:
+                        lines.append(' '.join(current_line))
+                    current_line = [word]
+            if current_line:
+                lines.append(' '.join(current_line))
+
+            # Calculate total text height
+            total_text_height = 0
+            for line in lines:
+                bbox = draw.textbbox((0, 0), line, font=font)
+                text_height = bbox[3] - bbox[1]
+                total_text_height += text_height + 20  # 20px spacing between lines
+            if total_text_height > 0:
+                total_text_height -= 20  # Remove extra spacing after last line
+
+            # Calculate total composition height (icon + gap + text)
+            gap = 100
+            total_height = icon_img.height + gap + total_text_height
+
+            # Center the entire composition vertically
+            icon_y = (cover_height - total_height) // 2
+            icon_x = (cover_width - icon_img.width) // 2
+
+            # Paste icon onto cover (handling transparency)
+            if icon_img.mode == 'RGBA':
+                cover_img.paste(icon_img, (icon_x, icon_y), icon_img)
+            else:
+                cover_img.paste(icon_img, (icon_x, icon_y))
+
+            # Draw text below the icon
+            text_y = icon_y + icon_img.height + gap
+            for i, line in enumerate(lines):
+                bbox = draw.textbbox((0, 0), line, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+                text_x = (cover_width - text_width) // 2
+                line_y = text_y + (i * (text_height + 20))
+                draw.text((text_x, line_y), line, fill='#232F3E', font=font)
+
+            # Save to bytes
+            output = io.BytesIO()
+            cover_img.save(output, format='PNG')
+            output.seek(0)
+            return output.read()
+
+        except Exception as e:
+            print(f"Warning: Failed to render cover image: {e}")
+            # Return the original icon as fallback
+            return icon_data
 
     def create_cover_page(self, service_name, image_filename):
         """Create an HTML cover page with centered icon and service name"""
@@ -460,70 +667,21 @@ class AWSDocsToEpub:
         if self.cover_icon_url:
             cover_image_data, img_ext, img_media_type = self.fetch_cover_icon()
             if cover_image_data:
-                # Use set_cover to add the image with proper metadata
-                # This ensures e-readers recognize it for library display
-                book.set_cover(
-                    f"images/cover_icon.{img_ext}", cover_image_data)
-
-                # Create CSS for cover page
-                cover_css = epub.EpubItem(
-                    uid="cover_style",
-                    file_name="style/cover.css",
-                    media_type="text/css",
-                    content='''
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        text-align: center;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                        font-family: Arial, sans-serif;
-                    }
-                    .cover-container {
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        padding: 2em;
-                    }
-                    .cover-icon {
-                        max-width: 300px;
-                        max-height: 300px;
-                        margin-bottom: 2em;
-                    }
-                    .cover-title {
-                        font-size: 2.5em;
-                        font-weight: bold;
-                        color: #232F3E;
-                        margin: 0;
-                        text-align: center;
-                    }
-                    '''.strip()
-                )
-                book.add_item(cover_css)
-
-                # Create a custom styled cover page with image and title
-                # Use a different filename to avoid conflict with set_cover's auto-generated cover.xhtml
+                # Render the cover page as a PNG image for e-reader library display
                 service_display_name = self.guide_title or f'AWS {self.service_name.upper()}'
-                cover_html = self.create_cover_page(
-                    service_display_name, f"images/cover_icon.{img_ext}")
+                cover_png_data = self.render_cover_as_png(
+                    service_display_name, cover_image_data, img_ext)
 
-                # Create custom cover page
-                cover_page = epub.EpubHtml(
-                    uid='title-page',
-                    title='Cover',
-                    file_name='title_page.xhtml',
-                    lang='en'
-                )
-                cover_page.content = cover_html
-                cover_page.add_item(cover_css)
+                # Use set_cover with the rendered PNG for library display
+                # This creates both the cover image and a simple cover page
+                book.set_cover("images/cover.png", cover_png_data)
 
-                # Set the is_linear property to ensure it appears first
-                cover_page.is_linear = True
-                book.add_item(cover_page)
+                # Get the auto-generated cover page from set_cover
+                # We'll use it as our cover_page reference
+                for item in book.get_items():
+                    if isinstance(item, epub.EpubHtml) and item.get_name() == 'cover.xhtml':
+                        cover_page = item
+                        break
 
         # Download and add all images to the book
         print("Downloading and embedding images...")
@@ -638,6 +796,13 @@ Examples:
         dest='cover_icon'
     )
     parser.add_argument(
+        '--max-pages',
+        help='Maximum number of pages to scrape (for testing)',
+        type=int,
+        default=None,
+        dest='max_pages'
+    )
+    parser.add_argument(
         '--version',
         action='version',
         version='AWS Docs to EPUB Converter 1.0'
@@ -665,7 +830,7 @@ Examples:
     print(f"Type: {converter.guide_type}\n")
 
     print("Step 1: Scraping all pages...")
-    pages = converter.scrape_all_pages()
+    pages = converter.scrape_all_pages(max_pages=args.max_pages)
     print(f"Successfully scraped {len(pages)} pages\n")
 
     if pages:
