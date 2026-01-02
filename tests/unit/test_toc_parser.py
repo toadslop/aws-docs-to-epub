@@ -88,7 +88,7 @@ def test_parse_toc_json_skips_pdf(toc_parser):
 
 
 def test_parse_toc_json_nested_contents(toc_parser):
-    """Test parsing nested TOC contents."""
+    """Test parsing nested TOC contents with hierarchy."""
     toc_data = {
         "title": "Main",
         "href": "main.html",
@@ -100,10 +100,12 @@ def test_parse_toc_json_nested_contents(toc_parser):
 
     pages = toc_parser.parse_toc_json(toc_data)
 
-    assert len(pages) == 3
+    # Now returns hierarchical structure
+    assert len(pages) == 1  # One parent entry
     assert pages[0]['title'] == "Main"
-    assert pages[1]['title'] == "Sub 1"
-    assert pages[2]['title'] == "Sub 2"
+    assert len(pages[0]['children']) == 2  # Two child entries
+    assert pages[0]['children'][0]['title'] == "Sub 1"
+    assert pages[0]['children'][1]['title'] == "Sub 2"
 
 
 def test_parse_toc_json_list(toc_parser):

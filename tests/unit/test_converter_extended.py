@@ -290,3 +290,114 @@ def test_add_chapter_with_existing_h1():
     args = mock_builder.add_chapter.call_args[0]
     # Should not duplicate h1
     assert args[1].count('<h1>') <= 1
+
+
+def test_flatten_toc():
+    """Test flattening hierarchical TOC structure."""
+    url = "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html"
+    converter = AWSDocsToEpub(url)
+
+    toc_structure = [
+        {
+            'url': 'https://example.com/page1.html',
+            'title': 'Page 1',
+            'children': [
+                {'url': 'https://example.com/page2.html',
+                    'title': 'Page 2', 'children': []},
+                {'url': 'https://example.com/page3.html',
+                    'title': 'Page 3', 'children': []}
+            ]
+        },
+        {'url': 'https://example.com/page4.html',
+            'title': 'Page 4', 'children': []}
+    ]
+
+    flat = converter._flatten_toc(  # pylint: disable=protected-access
+        toc_structure)
+
+    assert len(flat) == 4
+    assert flat[0]['url'] == 'https://example.com/page1.html'
+    assert flat[1]['url'] == 'https://example.com/page2.html'
+    assert flat[2]['url'] == 'https://example.com/page3.html'
+    assert flat[3]['url'] == 'https://example.com/page4.html'
+
+
+def test_flatten_toc_deep_nesting():
+    """Test flattening deeply nested TOC structure."""
+    url = "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html"
+    converter = AWSDocsToEpub(url)
+
+    toc_structure = [
+        {
+            'url': 'https://example.com/l1.html',
+            'title': 'Level 1',
+            'children': [
+                {
+                    'url': 'https://example.com/l2.html',
+                    'title': 'Level 2',
+                    'children': [
+                        {'url': 'https://example.com/l3.html',
+                            'title': 'Level 3', 'children': []}
+                    ]
+                }
+            ]
+        }
+    ]
+
+    flat = converter._flatten_toc(  # pylint: disable=protected-access
+        toc_structure)
+
+    assert len(flat) == 3
+    assert flat[0]['title'] == 'Level 1'
+    assert flat[1]['title'] == 'Level 2'
+    assert flat[2]['title'] == 'Level 3'
+
+
+def test_flatten_toc_with_no_url():
+    """Test flattening TOC with entries that have no URL."""
+    url = "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html"
+    converter = AWSDocsToEpub(url)
+
+    toc_structure = [
+        {
+            'url': None,  # Section header with no page
+            'title': 'Section',
+            'children': [
+                {'url': 'https://example.com/page1.html',
+                    'title': 'Page 1', 'children': []},
+                {'url': 'https://example.com/page2.html',
+                    'title': 'Page 2', 'children': []}
+            ]
+        }
+    ]
+
+    flat = converter._flatten_toc(  # pylint: disable=protected-access
+        toc_structure)
+
+    # Should only include entries with URLs
+    assert len(flat) == 2
+    assert flat[0]['title'] == 'Page 1'
+    assert flat[1]['title'] == 'Page 2'
+
+
+def test_add_chapter_with_images_returns_chapter():
+    """Test that _add_chapter_with_images returns the created chapter."""
+    url = "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html"
+    converter = AWSDocsToEpub(url)
+
+    mock_chapter = Mock()
+    mock_builder = Mock()
+    mock_builder.add_chapter.return_value = mock_chapter
+
+    page = {
+        'title': 'Test Page',
+        'content': '<p>Content</p>',
+        'url': 'https://example.com/test.html',
+        'images': []
+    }
+
+    result = converter._add_chapter_with_images(  # pylint: disable=protected-access
+        mock_builder, page, {})
+
+    assert result == mock_chapter
+    mock_builder.add_chapter.assert_called_once()

@@ -183,7 +183,7 @@ def _calculate_text_height(
 
 def _draw_text_lines(draw: ImageDraw.ImageDraw, lines: List[str],
                      font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
-                     cover_width: int, start_y: int, line_spacing: int = 20) -> None:
+                     cover_width: int, start_y: int, *, line_spacing: int = 20) -> None:
     """Draw text lines centered on the cover."""
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0, 0), line, font=font)
@@ -210,45 +210,70 @@ def render_cover_image(service_name: str, icon_data: bytes, icon_ext: str,
         PNG image data as bytes
     """
     try:
-        # Create cover background
-        cover_img = Image.new(
-            'RGB', (cover_width, cover_height), color='#FFFFFF')
-        draw = ImageDraw.Draw(cover_img)
+        # Create cover and prepare components
+        cover_img, draw = _create_cover_canvas(cover_width, cover_height)
+        icon_img = _prepare_icon(icon_data, icon_ext)
 
-        # Load and process icon
-        icon_img = _load_icon_image(icon_data, icon_ext)
-        icon_img = _resize_icon(icon_img, target_size=1280)
-
-        # Load font and prepare text
+        # Calculate layout
         font = _load_font()
         lines = _split_text_into_lines(
             service_name, font, draw, cover_width - 200)
-        total_text_height = _calculate_text_height(lines, font, draw)
+        layout = _calculate_layout(
+            icon_img, lines, font, draw, cover_width, cover_height)
 
-        # Calculate positioning
-        gap = 100
-        total_height = icon_img.height + gap + total_text_height
-        icon_y = int((cover_height - total_height) // 2)
-        icon_x = int((cover_width - icon_img.width) // 2)
-
-        # Paste icon with transparency support
-        if icon_img.mode == 'RGBA':
-            cover_img.paste(icon_img, (icon_x, icon_y), icon_img)
-        else:
-            cover_img.paste(icon_img, (icon_x, icon_y))
-
-        # Draw text
-        text_y = icon_y + icon_img.height + gap
-        _draw_text_lines(draw, lines, font, cover_width, text_y)
+        # Render cover
+        _paste_icon(cover_img, icon_img, layout['icon_x'], layout['icon_y'])
+        _draw_text_lines(draw, lines, font, cover_width, layout['text_y'])
 
         # Save to bytes
-        output = io.BytesIO()
-        cover_img.save(output, format='PNG')
-        output.seek(0)
-        return output.read()
+        return _save_image_to_bytes(cover_img)
 
     except (OSError, IOError, ValueError, RuntimeError) as e:
         print(f"Warning: Failed to render cover image: {e}")
-
         traceback.print_exc()
         return None
+
+
+def _create_cover_canvas(width: int, height: int) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
+    """Create a blank cover canvas with drawing context."""
+    cover_img = Image.new('RGB', (width, height), color='#FFFFFF')
+    draw = ImageDraw.Draw(cover_img)
+    return cover_img, draw
+
+
+def _prepare_icon(icon_data: bytes, icon_ext: str) -> Image.Image:
+    """Load and resize icon image."""
+    icon_img = _load_icon_image(icon_data, icon_ext)
+    return _resize_icon(icon_img, target_size=1280)
+
+
+def _calculate_layout(icon_img: Image.Image, lines: List[str],
+                      font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
+                      draw: ImageDraw.ImageDraw, cover_width: int,
+                      cover_height: int) -> dict:
+    """Calculate positioning for icon and text."""
+    total_text_height = _calculate_text_height(lines, font, draw)
+    gap = 100
+    total_height = icon_img.height + gap + total_text_height
+
+    icon_y = int((cover_height - total_height) // 2)
+    icon_x = int((cover_width - icon_img.width) // 2)
+    text_y = icon_y + icon_img.height + gap
+
+    return {'icon_x': icon_x, 'icon_y': icon_y, 'text_y': text_y}
+
+
+def _paste_icon(cover_img: Image.Image, icon_img: Image.Image, x: int, y: int) -> None:
+    """Paste icon onto cover with transparency support."""
+    if icon_img.mode == 'RGBA':
+        cover_img.paste(icon_img, (x, y), icon_img)
+    else:
+        cover_img.paste(icon_img, (x, y))
+
+
+def _save_image_to_bytes(image: Image.Image) -> bytes:
+    """Save PIL Image to PNG bytes."""
+    output = io.BytesIO()
+    image.save(output, format='PNG')
+    output.seek(0)
+    return output.read()

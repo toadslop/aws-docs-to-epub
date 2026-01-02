@@ -163,7 +163,8 @@ class AWSScraper:
         product_meta = soup.find('meta', {'name': 'product'})
         guide_meta = soup.find('meta', {'name': 'guide'})
 
-        if product_meta and guide_meta and hasattr(product_meta, 'get') and hasattr(guide_meta, 'get'):
+        if (product_meta and guide_meta and
+                hasattr(product_meta, 'get') and hasattr(guide_meta, 'get')):
             product = product_meta.get('content', '')
             guide = guide_meta.get('content', '')
             if product and guide:

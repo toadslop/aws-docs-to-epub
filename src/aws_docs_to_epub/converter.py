@@ -98,6 +98,25 @@ class AWSDocsToEpub:
             self.scraper.session, self.config.base_url, self.config.guide_path)
 
         self.metadata: GuideMetadata = GuideMetadata()
+        self.toc_structure: List[Dict[str, Any]] = []
+
+    def _flatten_toc(self, toc_structure: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """Flatten hierarchical TOC structure to simple list of pages."""
+        flat_pages: List[Dict[str, str]] = []
+
+        for item in toc_structure:
+            url = item.get('url')
+            if url:
+                flat_pages.append({
+                    'url': url,
+                    'title': item['title']
+                })
+            # Recursively process children
+            children = item.get('children', [])
+            if children:
+                flat_pages.extend(self._flatten_toc(children))
+
+        return flat_pages
 
     def scrape_all_pages(
         self,
@@ -118,12 +137,15 @@ class AWSDocsToEpub:
                 - 'content': HTML content
                 - 'images': List of image URLs found on the page
         """
-        # Load pages from TOC
-        pages_info = self.toc_parser.load_toc(json_file)
+        # Load hierarchical TOC structure
+        self.toc_structure = self.toc_parser.load_toc(json_file)
 
-        if not pages_info:
+        if not self.toc_structure:
             print("Warning: No pages found in TOC")
             return []
+
+        # Flatten to get list of URLs for scraping
+        pages_info = self._flatten_toc(self.toc_structure)
 
         # Apply max_pages limit if specified
         if max_pages:
@@ -197,11 +219,16 @@ class AWSDocsToEpub:
 
         # Create chapters
         print("Creating chapters...")
+        chapter_map: Dict[str, epub.EpubHtml] = {}
         for page in pages:
-            self._add_chapter_with_images(builder, page, image_mapping)
+            chapter = self._add_chapter_with_images(
+                builder, page, image_mapping)
+            if chapter:
+                chapter_map[page['url']] = chapter
 
-        # Finalize and write
-        builder.finalize()
+        # Finalize with nested TOC structure
+        builder.finalize(toc_structure=self.toc_structure,
+                         chapter_map=chapter_map)
         builder.write(output_filename)
 
         print(f"\nEPUB created successfully: {output_filename}")
@@ -258,7 +285,7 @@ class AWSDocsToEpub:
         builder: EPUBBuilder,
         page: Dict[str, Any],
         image_mapping: Dict[str, str]
-    ) -> None:
+    ) -> Optional[epub.EpubHtml]:
         """Add a chapter to the book with local image references."""
 
         content = page['content']
@@ -280,4 +307,4 @@ class AWSDocsToEpub:
         else:
             final_content = f'<h1>{page["title"]}</h1>' + str(soup)
 
-        builder.add_chapter(page['title'], final_content)
+        return builder.add_chapter(page['title'], final_content)

@@ -3,7 +3,7 @@
 import os
 import re
 import traceback
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict, Any, Tuple
 
 from ebooklib import epub
 from bs4 import BeautifulSoup
@@ -192,10 +192,44 @@ a {
 
         return content
 
-    def finalize(self) -> None:
-        """Finalize the book structure."""
+    def _build_nested_toc(
+            self,
+            toc_structure: List[Dict[str, Any]],
+            chapter_map: Dict[str, epub.EpubHtml]
+    ) -> Tuple[Union[epub.EpubHtml, Tuple[Any, ...]], ...]:
+        """Convert hierarchical TOC structure to ebooklib tuple format."""
+        result: List[Union[epub.EpubHtml, Tuple[Any, ...]]] = []
+
+        for item in toc_structure:
+            url = item.get('url')
+            children = item.get('children', [])
+
+            if url and url in chapter_map:
+                chapter = chapter_map[url]
+
+                if children:
+                    # Has children - create nested tuple (parent, (children))
+                    child_toc = self._build_nested_toc(children, chapter_map)
+                    result.append((chapter, child_toc))
+                else:
+                    # Leaf node - just add chapter
+                    result.append(chapter)
+            elif children:
+                # No URL but has children - process children directly
+                result.extend(self._build_nested_toc(children, chapter_map))
+
+        return tuple(result)
+
+    def finalize(self, toc_structure: Optional[List[Dict[str, Any]]] = None,
+                 chapter_map: Optional[Dict[str, epub.EpubHtml]] = None) -> None:
+        """Finalize the book structure with optional nested TOC."""
         # Add table of contents
-        self.book.toc = self.toc_items
+        if toc_structure and chapter_map:
+            # Build nested TOC structure
+            self.book.toc = self._build_nested_toc(toc_structure, chapter_map)
+        else:
+            # Fallback to flat TOC
+            self.book.toc = self.toc_items
 
         # Add navigation files
         self.book.add_item(epub.EpubNcx())

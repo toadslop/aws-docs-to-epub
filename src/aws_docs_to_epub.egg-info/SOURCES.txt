@@ -5,6 +5,7 @@ src/aws_docs_to_epub/__init__.py
 src/aws_docs_to_epub/__main__.py
 src/aws_docs_to_epub/cli.py
 src/aws_docs_to_epub/converter.py
+src/aws_docs_to_epub/py.typed
 src/aws_docs_to_epub.egg-info/PKG-INFO
 src/aws_docs_to_epub.egg-info/SOURCES.txt
 src/aws_docs_to_epub.egg-info/dependency_links.txt
