@@ -162,6 +162,32 @@ code.userinput, .userinput {
     font-size: 0.9em;
 }
 
+pre.programlisting {
+    font-family: Monaco, Courier New, monospace;
+    background-color: #f8f8f8;
+    border-left: 3px solid #0066cc;
+    padding: 0.8em 0.8em 0.8em 1.2em;
+    margin: 1em 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+    overflow-x: visible;
+}
+
+pre.programlisting code {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    display: block;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    /* Create hanging indent for wrapped lines */
+    text-indent: -1.5em;
+    padding-left: 1.5em;
+}
+
 img {
     max-width: 100%;
     height: auto;
