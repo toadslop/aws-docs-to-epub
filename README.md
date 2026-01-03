@@ -68,7 +68,7 @@ convert2/
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - requests
 - beautifulsoup4
 - ebooklib
