@@ -12,8 +12,6 @@ Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: Python :: 3.8
-Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Programming Language :: Python :: 3.11
 Classifier: Programming Language :: Python :: 3.12
@@ -25,16 +23,16 @@ License-File: LICENSE
 Requires-Dist: requests>=2.31.0
 Requires-Dist: beautifulsoup4>=4.12.0
 Requires-Dist: ebooklib>=0.18
-Requires-Dist: Pillow>=10.0.0
+Requires-Dist: Pillow>=12.1.0
 Requires-Dist: cairosvg>=2.7.0
-Requires-Dist: lxml>=4.9.0
+Requires-Dist: lxml>=6.0.2
 Provides-Extra: dev
-Requires-Dist: pytest>=7.4.0; extra == "dev"
-Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
-Requires-Dist: black>=23.0.0; extra == "dev"
-Requires-Dist: isort>=5.12.0; extra == "dev"
+Requires-Dist: pytest>=9.0.2; extra == "dev"
+Requires-Dist: pytest-cov>=7.0.0; extra == "dev"
+Requires-Dist: black>=25.12.0; extra == "dev"
+Requires-Dist: isort>=7.0.0; extra == "dev"
 Requires-Dist: mypy>=1.5.0; extra == "dev"
-Requires-Dist: pylint>=2.17.0; extra == "dev"
+Requires-Dist: pylint>=4.0.4; extra == "dev"
 Dynamic: license-file
 
 # AWS Documentation to EPUB Converter
