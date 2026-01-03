@@ -132,16 +132,53 @@ def _resize_icon(icon_img: Image.Image, target_size: int = 1280) -> Image.Image:
     return icon_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 
-def _load_font() -> Union[ImageFont.FreeTypeFont, ImageFont.ImageFont]:
+def _load_font(size: int = 120) -> Union[ImageFont.FreeTypeFont, ImageFont.ImageFont]:
     """Load a suitable font for the cover text."""
     try:
         return ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 120)
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
     except (OSError, IOError):
         try:
-            return ImageFont.truetype("arial.ttf", 120)
+            return ImageFont.truetype("arial.ttf", size)
         except (OSError, IOError):
             return ImageFont.load_default()
+
+
+def _calculate_optimal_font_and_text(
+        text: str, draw: ImageDraw.ImageDraw, cover_width: int,
+        cover_height: int, icon_height: int) -> Tuple[Union[ImageFont.FreeTypeFont, ImageFont.ImageFont], List[str]]:
+    """Calculate optimal font size and text layout to fit within cover dimensions.
+
+    Args:
+        text: Text to display
+        draw: ImageDraw context for measurement
+        cover_width: Width of cover
+        cover_height: Height of cover
+        icon_height: Height of icon (to calculate available space for text)
+
+    Returns:
+        Tuple of (font, lines)
+    """
+    # Calculate available space for text (leave margins and gap)
+    margin = 100
+    gap = 100
+    available_width = cover_width - (2 * margin)
+    available_height = cover_height - icon_height - gap - (2 * margin)
+
+    # Try font sizes from 120 down to 60
+    for font_size in range(120, 59, -10):
+        font = _load_font(font_size)
+        lines = _split_text_into_lines(text, font, draw, available_width)
+        text_height = _calculate_text_height(lines, font, draw)
+
+        # If it fits, return this font size
+        if text_height <= available_height:
+            return font, lines
+
+    # If nothing fits, use smallest font
+    font = _load_font(60)
+    lines = _split_text_into_lines(text, font, draw, available_width)
+    return font, lines
 
 
 def _split_text_into_lines(text: str, font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont],
@@ -212,12 +249,15 @@ def render_cover_image(service_name: str, icon_data: bytes, icon_ext: str,
     try:
         # Create cover and prepare components
         cover_img, draw = _create_cover_canvas(cover_width, cover_height)
-        icon_img = _prepare_icon(icon_data, icon_ext)
 
-        # Calculate layout
-        font = _load_font()
-        lines = _split_text_into_lines(
-            service_name, font, draw, cover_width - 200)
+        # Limit icon to 2/3 of cover dimensions
+        max_icon_size = int(min(cover_width, cover_height) * 2 / 3)
+        icon_img = _prepare_icon(icon_data, icon_ext, max_icon_size)
+
+        # Calculate optimal font size and layout
+        font, lines = _calculate_optimal_font_and_text(
+            service_name, draw, cover_width, cover_height, icon_img.height)
+
         layout = _calculate_layout(
             icon_img, lines, font, draw, cover_width, cover_height)
 
@@ -241,10 +281,10 @@ def _create_cover_canvas(width: int, height: int) -> Tuple[Image.Image, ImageDra
     return cover_img, draw
 
 
-def _prepare_icon(icon_data: bytes, icon_ext: str) -> Image.Image:
+def _prepare_icon(icon_data: bytes, icon_ext: str, max_size: int = 1280) -> Image.Image:
     """Load and resize icon image."""
     icon_img = _load_icon_image(icon_data, icon_ext)
-    return _resize_icon(icon_img, target_size=1280)
+    return _resize_icon(icon_img, target_size=max_size)
 
 
 def _calculate_layout(icon_img: Image.Image, lines: List[str],
