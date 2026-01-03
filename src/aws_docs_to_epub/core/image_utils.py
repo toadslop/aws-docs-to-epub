@@ -146,7 +146,8 @@ def _load_font(size: int = 120) -> Union[ImageFont.FreeTypeFont, ImageFont.Image
 
 def _calculate_optimal_font_and_text(
         text: str, draw: ImageDraw.ImageDraw, cover_width: int,
-        cover_height: int, icon_height: int) -> Tuple[Union[ImageFont.FreeTypeFont, ImageFont.ImageFont], List[str]]:
+        cover_height: int, icon_height: int
+) -> Tuple[Union[ImageFont.FreeTypeFont, ImageFont.ImageFont], List[str]]:
     """Calculate optimal font size and text layout to fit within cover dimensions.
 
     Args:

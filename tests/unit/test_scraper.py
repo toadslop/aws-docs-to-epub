@@ -248,7 +248,11 @@ def test_remove_invalid_attributes(create_scraper):
         assert not elem.has_attr(
             'data-toggle'), f"Element {elem.name} still has data-toggle"
         assert not elem.has_attr('copy'), f"Element {elem.name} still has copy"
-        assert not elem.has_attr('id'), f"Element {elem.name} still has id"
+    # id attributes should be preserved for fragment link support
+    div_elem = main_content
+    assert div_elem.has_attr('id'), "div should still have id attribute"
+    para_elem = main_content.find('p')
+    assert para_elem.has_attr('id'), "p should still have id attribute"
 
 
 def test_fix_links_with_non_string_href(create_scraper):
@@ -413,7 +417,6 @@ def test_remove_invalid_attributes_removes_all_attrs(create_scraper):
 
     assert main_content is not None
     for elem in main_content.find_all(True):
-        assert not elem.has_attr('id'), f"Element {elem.name} still has id"
         assert not elem.has_attr(
             'tab-id'), f"Element {elem.name} still has tab-id"
         assert not elem.has_attr(
@@ -421,6 +424,12 @@ def test_remove_invalid_attributes_removes_all_attrs(create_scraper):
         assert not elem.has_attr(
             'data-toggle'), f"Element {elem.name} still has data-toggle"
         assert not elem.has_attr('copy'), f"Element {elem.name} still has copy"
+
+    # id attributes should be preserved for fragment link support
+    test_div = main_content.find('div', id='test')
+    assert test_div is not None, "div with id='test' should exist"
+    para = main_content.find('p', id='para')
+    assert para is not None, "p with id='para' should exist"
 
 
 def test_fetch_page_max_retries_exhausted(create_scraper):

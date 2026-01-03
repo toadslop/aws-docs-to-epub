@@ -143,7 +143,8 @@ def test_create_epub():
 
         with patch.object(converter, '_download_images', return_value={}):
             with patch.object(converter, '_add_chapter_with_images'):
-                output = converter.create_epub(pages)
+                with patch.object(converter, '_rewrite_internal_links'):
+                    output = converter.create_epub(pages)
 
     assert output is not None
     mock_builder.add_css.assert_called_once()
@@ -176,7 +177,8 @@ def test_create_epub_with_cover():
 
         with patch.object(converter, '_download_images', return_value={}):
             with patch.object(converter, '_add_chapter_with_images'):
-                converter.create_epub(pages)
+                with patch.object(converter, '_rewrite_internal_links'):
+                    converter.create_epub(pages)
 
     mock_builder.add_cover.assert_called_once_with("icon.png")
 
@@ -195,7 +197,8 @@ def test_create_epub_custom_filename():
 
         with patch.object(converter, '_download_images', return_value={}):
             with patch.object(converter, '_add_chapter_with_images'):
-                output = converter.create_epub(pages, 'custom.epub')
+                with patch.object(converter, '_rewrite_internal_links'):
+                    output = converter.create_epub(pages, 'custom.epub')
 
     assert output == 'custom.epub'
 
