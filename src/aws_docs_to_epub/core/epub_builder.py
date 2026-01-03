@@ -37,6 +37,7 @@ class EPUBBuilder:
         self.toc_items: List[epub.EpubHtml] = []
         self.spine: List[Union[str, epub.EpubHtml]] = ['nav']
         self.css: Optional[epub.EpubItem] = None
+        self.url_to_filename: Dict[str, str] = {}
 
     def add_cover(self, cover_icon_url: str) -> None:
         """Generate and add cover image to the book."""
@@ -231,16 +232,23 @@ a {
         filename = re.sub(r'[-\s]+', '_', filename)
         return filename[:50].lower()
 
-    def add_chapter(self, title: str, content: str) -> epub.EpubHtml:
+    def add_chapter(
+            self, title: str, content: str, source_url: Optional[str] = None
+    ) -> epub.EpubHtml:
         """Add a chapter to the book."""
         filename = self.sanitize_filename(title)
+        xhtml_filename = f'{filename}.xhtml'
 
         # Create chapter
         chapter = epub.EpubHtml(
             title=title,
-            file_name=f'{filename}.xhtml',
+            file_name=xhtml_filename,
             lang='en'
         )
+
+        # Track URL to filename mapping if source URL provided
+        if source_url:
+            self.url_to_filename[source_url] = xhtml_filename
 
         # Clean and set content
         chapter.content = self._clean_content(content)

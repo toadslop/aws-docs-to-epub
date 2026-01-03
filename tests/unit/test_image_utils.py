@@ -424,7 +424,9 @@ def test_fetch_local_image_default_extension():
 
 def test_render_cover_image_exception_in_image_loading():
     """Test render cover handles exception in image loading."""
-    with patch('aws_docs_to_epub.core.image_utils._load_icon_image', side_effect=ValueError("Invalid image")):
+    with patch(
+            'aws_docs_to_epub.core.image_utils._load_icon_image',
+            side_effect=ValueError("Invalid image")):
         result = render_cover_image("Test", b"data", 'png')
 
         assert result is None

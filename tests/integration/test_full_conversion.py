@@ -23,7 +23,7 @@ def test_msk_guide_conversion_with_epubcheck():
             "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html",
             "-o", output_file,
             "-c",
-            "https://cdn.prod.website-files.com/5f05d5858fab461d0d08eaeb/6351097781715e11162b7f19_msk_light.svg",
+            "https://cdn.prod.website-files.com/5f05d5858fab461d0d08eaeb/6351097781715e11162b7f19_msk_light.svg",  # pylint: disable=line-too-long
             "--max-pages", "10"
         ]
 
@@ -109,7 +109,7 @@ def test_msk_guide_conversion_basic():
             "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html",
             "-o", output_file,
             "-c",
-            "https://cdn.prod.website-files.com/5f05d5858fab461d0d08eaeb/6351097781715e11162b7f19_msk_light.svg",
+            "https://cdn.prod.website-files.com/5f05d5858fab461d0d08eaeb/6351097781715e11162b7f19_msk_light.svg",  # pylint: disable=line-too-long
             "--max-pages", "10"
         ]
 

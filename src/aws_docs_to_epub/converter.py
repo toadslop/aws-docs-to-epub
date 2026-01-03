@@ -1,6 +1,6 @@
 """Main converter class that orchestrates AWS documentation to EPUB conversion."""
 
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlparse
 import re
 from dataclasses import dataclass
 from typing import Optional, Any, Dict, List
@@ -217,7 +217,7 @@ class AWSDocsToEpub:
         image_mapping = self._download_images(pages, builder)
         print(f"Embedded {len(image_mapping)} images")
 
-        # Create chapters
+        # First pass: create chapters and build URL mapping
         print("Creating chapters...")
         chapter_map: Dict[str, epub.EpubHtml] = {}
         for page in pages:
@@ -225,6 +225,10 @@ class AWSDocsToEpub:
                 builder, page, image_mapping)
             if chapter:
                 chapter_map[page['url']] = chapter
+
+        # Second pass: rewrite internal links
+        print("Rewriting internal links...")
+        self._rewrite_internal_links(builder)
 
         # Finalize with nested TOC structure
         builder.finalize(toc_structure=self.toc_structure,
@@ -307,4 +311,58 @@ class AWSDocsToEpub:
         else:
             final_content = f'<h1>{page["title"]}</h1>' + str(soup)
 
-        return builder.add_chapter(page['title'], final_content)
+        return builder.add_chapter(page['title'], final_content, page['url'])
+
+    def _rewrite_internal_links(
+        self,
+        builder: EPUBBuilder
+    ) -> None:
+        """Rewrite internal links to point to chapters in the EPUB."""
+        base_url = self.config.base_url
+        guide_path = self.config.guide_path
+
+        for chapter in builder.chapters:
+            soup = BeautifulSoup(chapter.content, 'html.parser')
+            links_rewritten = 0
+
+            for link in soup.find_all('a', href=True):
+                href = str(link['href'])
+
+                # Parse the link to determine if it's internal
+                parsed_href = urlparse(href)
+
+                # Check if this is an internal link
+                # Internal links are those that:
+                # 1. Point to the same base domain and guide path
+                # 2. Are in our set of scraped pages
+                is_internal = False
+                target_url = href
+
+                # If it's an absolute URL
+                if parsed_href.netloc:
+                    # Check if it's pointing to docs.aws.amazon.com with our guide path
+                    if (parsed_href.netloc == 'docs.aws.amazon.com' and
+                            parsed_href.path.startswith(guide_path)):
+                        is_internal = True
+                        # Normalize the URL (remove fragment for lookup)
+                        target_url = f"{base_url}{parsed_href.path}"
+                        if parsed_href.query:
+                            target_url += f"?{parsed_href.query}"
+
+                if is_internal and target_url in builder.url_to_filename:
+                    # Rewrite to internal EPUB link
+                    target_filename = builder.url_to_filename[target_url]
+
+                    # Preserve fragment if present (for in-page anchors)
+                    if parsed_href.fragment:
+                        link['href'] = f"{target_filename}#{parsed_href.fragment}"
+                    else:
+                        link['href'] = target_filename
+
+                    links_rewritten += 1
+
+            if links_rewritten > 0:
+                # Update chapter content with rewritten links
+                chapter.content = str(soup)
+                print(
+                    f"  Rewrote {links_rewritten} internal link(s) in: {chapter.title}")

@@ -114,11 +114,11 @@ class AWSScraper:
         self._remove_invalid_attributes(main_content)
 
     def _remove_invalid_attributes(self, main_content: Tag) -> None:
-        """Remove id and other invalid attributes from elements."""
+        """Remove invalid attributes from elements."""
         invalid_attrs = ['tab-id', 'data-target', 'data-toggle', 'copy']
         for elem in main_content.find_all(True):
-            if elem.has_attr('id'):
-                del elem['id']
+            # Keep id attributes as they're needed for fragment links
+            # Only remove specifically invalid attributes
             for attr in invalid_attrs:
                 if elem.has_attr(attr):
                     del elem[attr]
