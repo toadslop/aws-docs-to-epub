@@ -152,7 +152,7 @@ pre, code {
     overflow-x: auto;
 }
 
-code.userinput, .userinput {
+p code {
     display: inline;
     font-family: Monaco, Courier New, monospace;
     background-color: #f9f9f9;
@@ -166,13 +166,14 @@ pre.programlisting {
     font-family: Monaco, Courier New, monospace;
     background-color: #f8f8f8;
     border-left: 3px solid #0066cc;
-    padding: 0.8em 0.8em 0.8em 1.2em;
+    padding: 0.6em 0.6em 0.6em 0.9em;
     margin: 1em 0;
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
     line-height: 1.5;
     overflow-x: visible;
+    font-size: 0.9em;
 }
 
 pre.programlisting code {
@@ -184,8 +185,8 @@ pre.programlisting code {
     word-wrap: break-word;
     overflow-wrap: break-word;
     /* Create hanging indent for wrapped lines */
-    text-indent: -1.5em;
-    padding-left: 1.5em;
+    text-indent: -1.2em;
+    padding-left: 1.2em;
 }
 
 img {
