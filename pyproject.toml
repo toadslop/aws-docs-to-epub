@@ -43,9 +43,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/aws-docs-to-epub"
-Repository = "https://github.com/yourusername/aws-docs-to-epub"
-Issues = "https://github.com/yourusername/aws-docs-to-epub/issues"
+Homepage = "https://github.com/toadslop/aws-docs-to-epub"
+Repository = "https://github.com/toadslop/aws-docs-to-epub"
+Issues = "https://github.com/toadslop/aws-docs-to-epub/issues"
 
 [project.scripts]
 aws-docs-to-epub = "aws_docs_to_epub.cli:main"
@@ -55,6 +55,9 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+aws_docs_to_epub = ["assets/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -68,7 +71,7 @@ markers = [
 
 [tool.black]
 line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
 
 [tool.isort]

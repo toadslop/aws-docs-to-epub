@@ -1,0 +1,141 @@
+@namespace epub "http://www.idpf.org/2007/ops";
+
+body {
+    font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif;
+    margin: 5%;
+    padding: 0;
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+h1 {
+    font-size: 1.6em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    margin: 1.2em 0 0.6em 0;
+    line-height: 1.3;
+}
+
+h2 {
+    font-size: 1.4em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    margin: 1em 0 0.5em 0;
+    line-height: 1.3;
+}
+
+h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    margin: 1em 0 0.5em 0;
+    line-height: 1.3;
+}
+
+h4 {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: left;
+    color: #222;
+    margin: 0.9em 0 0.4em 0;
+    line-height: 1.3;
+}
+
+h5 {
+    font-size: 1em;
+    font-weight: bold;
+    text-align: left;
+    color: #333;
+    margin: 0.8em 0 0.4em 0;
+    line-height: 1.3;
+}
+
+h6 {
+    font-size: 0.95em;
+    font-weight: bold;
+    text-align: left;
+    color: #444;
+    margin: 0.8em 0 0.4em 0;
+    line-height: 1.3;
+}
+
+p {
+    text-align: justify;
+    margin: 0.5em 0;
+}
+
+pre,
+code {
+    font-family: Monaco, Courier New, monospace;
+    background-color: #f4f4f4;
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    overflow-x: auto;
+}
+
+p code {
+    display: inline;
+    font-family: Monaco, Courier New, monospace;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+pre.programlisting {
+    font-family: Monaco, Courier New, monospace;
+    background-color: #f8f8f8;
+    border-left: 3px solid #0066cc;
+    padding: 0.6em 0.6em 0.6em 0.9em;
+    margin: 1em 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+    overflow-x: visible;
+    font-size: 0.9em;
+}
+
+pre.programlisting code {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    display: block;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    /* Create hanging indent for wrapped lines */
+    text-indent: -1.2em;
+    padding-left: 1.2em;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+a {
+    color: #0066cc;
+    text-decoration: none;
+}
