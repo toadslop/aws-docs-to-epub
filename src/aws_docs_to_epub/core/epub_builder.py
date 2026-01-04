@@ -74,12 +74,36 @@ class EPUBBuilder:
 
             traceback.print_exc()
 
-    def add_css(self) -> epub.EpubItem:
-        """Add default CSS stylesheet to the book."""
-        # Load CSS from external file
+    def add_css(self, custom_css_path: Optional[str] = None) -> epub.EpubItem:
+        """Add default CSS stylesheet to the book, optionally with custom overrides.
+        
+        Args:
+            custom_css_path: Optional path to custom CSS file. If provided, its contents
+                           will be appended to the default CSS to allow overriding styles.
+        
+        Returns:
+            The CSS EpubItem that was added to the book.
+        """
+        # Load default CSS from external file
         css_file = Path(__file__).parent.parent / 'assets' / 'epub_styles.css'
         with open(css_file, 'r', encoding='utf-8') as f:
             css_content = f.read()
+        
+        # Append custom CSS if provided
+        if custom_css_path:
+            try:
+                custom_path = Path(custom_css_path)
+                if not custom_path.exists():
+                    print(f"Warning: Custom CSS file not found: {custom_css_path}")
+                elif not custom_path.is_file():
+                    print(f"Warning: Custom CSS path is not a file: {custom_css_path}")
+                else:
+                    with open(custom_path, 'r', encoding='utf-8') as f:
+                        custom_css = f.read()
+                    css_content += "\n\n/* Custom CSS Overrides */\n" + custom_css
+                    print(f"Custom CSS loaded from: {custom_css_path}")
+            except (OSError, IOError) as e:
+                print(f"Warning: Failed to load custom CSS: {e}")
 
         nav_css = epub.EpubItem(
             uid="style_main",

@@ -110,7 +110,7 @@ def test_cli_with_custom_output():
 
     # Check that create_epub was called with pages and custom filename
     mock_converter.create_epub.assert_called_once_with(
-        [{'title': 'Page 1'}], 'custom.epub')
+        [{'title': 'Page 1'}], 'custom.epub', None)
 
 
 def test_cli_with_cover_icon():
@@ -163,3 +163,25 @@ def test_cli_version():
             main()
 
     assert exc_info.value.code == 0
+
+
+def test_cli_with_custom_css():
+    """Test CLI with custom CSS option."""
+    test_url = "https://docs.aws.amazon.com/msk/latest/developerguide/what-is-msk.html"
+
+    mock_converter = Mock()
+    mock_converter.config = Mock()
+    mock_converter.config.service_name = "msk"
+    mock_converter.config.guide_type = "developerguide"
+    mock_converter.metadata = Mock()
+    mock_converter.metadata.title = "Test Guide"
+    mock_converter.scrape_all_pages.return_value = [{'title': 'Page 1'}]
+    mock_converter.create_epub.return_value = "test.epub"
+
+    with patch('sys.argv', ['aws-docs-to-epub', test_url, '--custom-css', 'custom.css']):
+        with patch('aws_docs_to_epub.cli.AWSDocsToEpub', return_value=mock_converter):
+            main()
+
+    # Check that create_epub was called with custom CSS path
+    mock_converter.create_epub.assert_called_once_with(
+        [{'title': 'Page 1'}], None, 'custom.css')

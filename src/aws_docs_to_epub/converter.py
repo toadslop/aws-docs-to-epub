@@ -168,7 +168,8 @@ class AWSDocsToEpub:
     def create_epub(
         self,
         pages: List[Dict[str, Any]],
-        output_filename: Optional[str] = None
+        output_filename: Optional[str] = None,
+        custom_css_path: Optional[str] = None
     ) -> Optional[str]:
         """
         Create an EPUB file from scraped pages.
@@ -177,6 +178,7 @@ class AWSDocsToEpub:
             pages (list): List of page dictionaries from scrape_all_pages()
             output_filename (str, optional): Custom output filename. If None, generates
                                             from service name and guide type.
+            custom_css_path (str, optional): Path to custom CSS file to override default styles.
 
         Returns:
             str: Path to the created EPUB file
@@ -210,7 +212,7 @@ class AWSDocsToEpub:
             builder.add_cover(self.cover_icon_url)
 
         # Add CSS
-        builder.add_css()
+        builder.add_css(custom_css_path)
 
         # Download and add images
         print("Downloading and embedding images...")

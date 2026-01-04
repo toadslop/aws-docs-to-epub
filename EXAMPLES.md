@@ -53,6 +53,46 @@ python aws_docs_to_epub.py https://docs.aws.amazon.com/dynamodb/latest/developer
 ```
 - **Output**: `my_dynamodb_guide.epub`
 
+### 7. Custom Styling with CSS
+You can customize the appearance of your EPUB by providing a custom CSS file that overrides the default styles:
+
+```bash
+# Create a custom CSS file
+cat > my_styles.css << 'EOF'
+/* Increase font size for better readability */
+body {
+    font-size: 1.3em;
+}
+
+/* Make headings stand out more */
+h1, h2, h3 {
+    color: #0066cc;
+}
+
+/* Change code block styling */
+pre.programlisting {
+    background-color: #f0f8ff;
+    border-left: 5px solid #0066cc;
+}
+
+/* Customize links */
+a {
+    color: #0088cc;
+    text-decoration: underline;
+}
+EOF
+
+# Generate EPUB with custom styling
+python aws_docs_to_epub.py https://docs.aws.amazon.com/lambda/latest/dg/welcome.html --custom-css my_styles.css
+```
+
+The custom CSS will be applied **after** the default styles, so you can override any aspect of the EPUB's appearance. This is perfect for:
+- Increasing font sizes for better readability
+- Adjusting colors for personal preference or accessibility
+- Modifying code block appearance
+- Changing heading styles
+- Customizing link colors and decoration
+
 ## Advanced Usage
 
 ### Convert Multiple Guides

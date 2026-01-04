@@ -57,6 +57,12 @@ Examples:
         dest='cover_icon'
     )
     parser.add_argument(
+        '--custom-css',
+        help='Path to custom CSS file to override default styles',
+        default=None,
+        dest='custom_css'
+    )
+    parser.add_argument(
         '--max-pages',
         help='Maximum number of pages to scrape (for testing)',
         type=int,
@@ -99,7 +105,7 @@ Examples:
     print(f"Successfully scraped {len(pages)} pages\n")
 
     print("Step 2: Creating EPUB...")
-    output_file = converter.create_epub(pages, args.output)
+    output_file = converter.create_epub(pages, args.output, args.custom_css)
 
     if output_file:
         print(f"\n✓ Done! EPUB file created: {output_file}")
