@@ -22,6 +22,7 @@ class GuideConfig:
     guide_type: str
     guide_path: str
     start_url: str
+    locale: Optional[str] = None
     base_url: str = 'https://docs.aws.amazon.com'
 
 
@@ -75,18 +76,27 @@ class AWSDocsToEpub:
 
         # Extract service and guide type from URL
         # Typical format: /service/version/guide-type/page.html
-        if len(path_parts) >= 3:
-            service_name = path_parts[0]
-            version = path_parts[1]
-            guide_type = path_parts[2]
-            guide_path = f"/{service_name}/{version}/{guide_type}/"
+        # Localized format: /<locale>/service/version/guide-type/page.html
+        locale = None
+        offset = 0
+        if path_parts and re.fullmatch(r"[a-z]{2}_[a-z]{2}", path_parts[0]):
+            locale = path_parts[0]
+            offset = 1
 
-            self.config: GuideConfig = GuideConfig(
+        if len(path_parts) >= offset + 3:
+            service_name = path_parts[offset]
+            version = path_parts[offset + 1]
+            guide_type = path_parts[offset + 2]
+            locale_prefix = f"{locale}/" if locale else ""
+            guide_path = f"/{locale_prefix}{service_name}/{version}/{guide_type}/"
+
+            self.config = GuideConfig(
                 service_name=service_name,
                 version=version,
                 guide_type=guide_type,
                 guide_path=guide_path,
-                start_url=start_url
+                start_url=start_url,
+                locale=locale
             )
         else:
             raise ValueError(
